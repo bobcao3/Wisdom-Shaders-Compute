@@ -1,0 +1,73 @@
+layout (local_size_x = 16, local_size_y = 16) in;
+
+layout (rg32f) uniform image2D colorimg4;
+
+const vec2 workGroupsRender = vec2(0.5f, 0.5f);
+
+uniform sampler2D depthtex0;
+
+void min_max_depth_sample(ivec2 iuv, int stride, inout float min_depth, inout float max_depth)
+{
+    float sample00 = texelFetch(depthtex0, iuv, 0).r;
+    // min_depth = min(min_depth, sample00);
+    max_depth = max(max_depth, sample00);
+
+    float sample01 = texelFetch(depthtex0, iuv + ivec2(0, stride), 0).r;
+    // min_depth = min(min_depth, sample01);
+    max_depth = max(max_depth, sample01);
+
+    float sample10 = texelFetch(depthtex0, iuv + ivec2(stride, 0), 0).r;
+    // min_depth = min(min_depth, sample10);
+    max_depth = max(max_depth, sample10);
+
+    float sample11 = texelFetch(depthtex0, iuv + ivec2(stride, stride), 0).r;
+    // min_depth = min(min_depth, sample11);
+    max_depth = max(max_depth, sample11);
+}
+
+uniform float far;
+uniform float near;
+
+shared float depth_values[16][16];
+
+uniform float viewWidth;
+uniform float viewHeight;
+
+void main()
+{
+    ivec2 iuv = ivec2(gl_GlobalInvocationID.xy);
+
+    float min_depth = 1.0;
+    float max_depth = 0.0;
+
+    min_max_depth_sample(iuv * 2, 1, min_depth, max_depth);
+
+    depth_values[gl_LocalInvocationID.x][gl_LocalInvocationID.y] = max_depth;
+
+    imageStore(colorimg4, iuv, vec4(max_depth, 0.0, 0.0, 0.0));
+
+    // Next LOD
+
+    int h_offset = 0;
+
+    for (int lod = 1; lod < 7; lod++)
+    {
+        h_offset += int(viewWidth) >> lod;
+
+        int stride = 1 << lod;
+        int substride = 1 << (lod - 1);
+
+        memoryBarrierShared();
+
+        if (gl_LocalInvocationID.x % stride != 0 || gl_LocalInvocationID.y % stride != 0) return;
+
+        max_depth = max(max_depth, depth_values[gl_LocalInvocationID.x            ][gl_LocalInvocationID.y + substride]);
+        max_depth = max(max_depth, depth_values[gl_LocalInvocationID.x + substride][gl_LocalInvocationID.y            ]);
+        max_depth = max(max_depth, depth_values[gl_LocalInvocationID.x + substride][gl_LocalInvocationID.y + substride]);
+
+        depth_values[gl_LocalInvocationID.x][gl_LocalInvocationID.y] = max_depth;
+
+        // imageStore(colorimg4, iuv + ivec2(h_offset, 0), vec4(max_depth, 0.0, 0.0, 0.0));
+        imageStore(colorimg4, (iuv >> lod) + ivec2(h_offset, 0), vec4(max_depth, 0.0, 0.0, 0.0));
+    }
+}

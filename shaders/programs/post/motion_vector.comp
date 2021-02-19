@@ -1,0 +1,33 @@
+layout (local_size_x = 32, local_size_y = 32) in;
+
+layout (rgba16f) uniform image2D colorimg1;
+
+const vec2 workGroupsRender = vec2(1.0f, 1.0f);
+
+uniform vec2 invWidthHeight;
+
+#include "/libs/transform.glsl"
+
+uniform vec3 cameraPosition;
+uniform vec3 previousCameraPosition;
+
+void main()
+{
+    ivec2 iuv = ivec2(gl_GlobalInvocationID.xy);
+    vec2 uv = (vec2(iuv) + 0.5) * invWidthHeight;
+
+    float depth = texelFetch(depthtex0, iuv, 0).r;
+
+    vec3 proj_pos = getProjPos(uv, depth);
+    vec3 view_pos = proj2view(proj_pos);
+    vec3 world_pos = (gbufferModelViewInverse * vec4(view_pos, 1.0)).xyz;
+
+    vec3 world_pos_prev = world_pos - previousCameraPosition + cameraPosition;
+    vec4 view_pos_prev = gbufferPreviousModelView * vec4(world_pos_prev, 1.0);
+    vec4 proj_pos_prev = gbufferPreviousProjection * view_pos_prev;
+
+    vec2 uv_prev = proj_pos_prev.st / proj_pos_prev.w;
+    uv_prev = uv_prev * 0.5 + 0.5;
+
+    imageStore(colorimg1, iuv, vec4(uv_prev - uv, 0.0, 0.0));
+}
