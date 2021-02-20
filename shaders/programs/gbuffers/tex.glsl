@@ -4,7 +4,8 @@
 VERTEX_INOUT VertexOut {
     vec4 color;
     vec2 uv;
-    flat vec2 normal_enc;
+    // flat vec2 normal_enc;
+    vec3 normal;
     float view_z;
 };
 
@@ -23,7 +24,7 @@ void main()
     albedo.rgb = fromGamma(albedo.rgb);
 
     gl_FragData[0] = albedo; // Albedo
-    gl_FragData[1] = vec4(normal_enc, 0.0, 1.0); // Depth, Flag, Normal
+    gl_FragData[1] = vec4(normal, 1.0); // Depth, Flag, Normal
 #ifdef SPECULAR
     gl_FragData[2] = vec4(0.0); // F0, Smoothness
 #endif
@@ -35,6 +36,8 @@ void main()
 
 #include "/libs/encode.glsl"
 
+uniform vec2 taaOffset;
+
 void main()
 {
     vec4 view_pos = gl_ModelViewMatrix * gl_Vertex;
@@ -43,9 +46,12 @@ void main()
     gl_Position = gl_ProjectionMatrix * view_pos;
     
     color = gl_Color;
-    normal_enc = normalEncode(normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz));
+    // normal_enc = normalEncode(normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz));
+    normal = normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz);
 
     uv = gl_MultiTexCoord0.st;
+
+    gl_Position.st += taaOffset * gl_Position.w;
 }
 
 #endif

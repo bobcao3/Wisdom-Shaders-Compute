@@ -4,13 +4,15 @@
 
 const int colortex0Format = R16F; // AO
 const int colortex1Format = RG16F; // Motion vector
+const int colortex2Format = R11F_G11F_B10F; // Composite
 const int colortex4Format = R32F; // Depth chain
 
 const int colortex6Format = RGBA8; // Albedo
-const int colortex7Format = RG16; // Normals
+const int colortex7Format = RGB8_SNORM; // Normals
 const int colortex8Format = RGBA8; // Specular
 
 const int colortex9Format = R16F; // AO temporal
+const int colortex10Format = R11F_G11F_B10F; // Color temporal
 
 const bool colortex6MipmapEnabled = true;
 const bool colortex7MipmapEnabled = true;
@@ -38,12 +40,12 @@ void main()
 {
     ivec2 iuv = ivec2(gl_FragCoord.st);
 
-    vec4 color = texelFetch(colortex9, iuv / 2, 0).rrrr;
+    vec3 color = texelFetch(colortex2, iuv, 0).rgb;
     // vec4 color = vec4(linearizeDepth(texelFetch(colortex4, iuv, 0).r));
 
     // vec4 color = vec4(texelFetch(colortex1, iuv, 0).rg, 0.0, 1.0);
 
     color = toGamma(color);
 
-    gl_FragColor = color;
+    gl_FragColor = vec4(color, 1.0);
 }

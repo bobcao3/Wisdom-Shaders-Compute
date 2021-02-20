@@ -21,7 +21,7 @@ void main()
 
     float history = clamp(texture(colortex9, history_uv * 0.5).r, 0.0, 1.0);
 
-    float weight = 0.2;
+    float weight = 0.1;
     
     if (history_uv.x < 0.0 || history_uv.x >= 1.0 || history_uv.y < 0.0 || history_uv.y >= 1.0) weight = 1.0;
 

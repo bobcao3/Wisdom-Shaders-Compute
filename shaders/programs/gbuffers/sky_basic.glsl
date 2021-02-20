@@ -3,7 +3,8 @@
 
 VERTEX_INOUT VertexOut {
     vec4 color;
-    flat vec2 normal_enc;
+    // flat vec2 normal_enc;
+    vec3 normal;
     float view_z;
 };
 
@@ -28,6 +29,8 @@ void main()
 
 #include "/libs/encode.glsl"
 
+uniform vec2 taaOffset;
+
 void main()
 {
     vec4 view_pos = gl_ModelViewMatrix * gl_Vertex;
@@ -36,7 +39,10 @@ void main()
     gl_Position = gl_ProjectionMatrix * view_pos;
     
     color = gl_Color;
-    normal_enc = normalEncode(normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz));
+    // normal_enc = normalEncode(normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz));
+    normal = normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz);
+    
+    gl_Position.st += taaOffset * gl_Position.w;
 }
 
 #endif

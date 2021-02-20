@@ -114,12 +114,12 @@ void main()
 
     float depth = texelFetch(colortex4, iuv, 0).r;
 
-    if (depth < 1.0)
+    if (depth < 1.0 && depth > 0.7)
     {
         vec3 proj_pos = getProjPos(uv, depth);
         vec3 view_pos = proj2view(proj_pos);
 
-        vec3 view_normal = normalDecode(texelFetch(colortex7, iuv, 1).rg);
+        vec3 view_normal = texelFetch(colortex7, iuv, 1).rgb;
 
         float ao = getAO(iuv, uv, view_pos, view_normal);
 
