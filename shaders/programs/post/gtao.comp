@@ -119,7 +119,7 @@ void main()
         vec3 proj_pos = getProjPos(uv, depth);
         vec3 view_pos = proj2view(proj_pos);
 
-        vec3 view_normal = texelFetch(colortex7, iuv, 1).rgb;
+        vec3 view_normal = texelFetch(colortex7, iuv * 2, 0).rgb;
 
         float ao = getAO(iuv, uv, view_pos, view_normal);
 

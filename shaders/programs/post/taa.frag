@@ -4,8 +4,6 @@ uniform sampler2D colortex10;
 
 /* RENDERTARGETS: 2,10 */
 
-const bool colortex10Clear = false;
-
 uniform vec2 invWidthHeight;
 
 void main()

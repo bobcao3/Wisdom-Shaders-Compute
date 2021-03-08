@@ -17,6 +17,8 @@ uniform float viewHeight;
 
 uniform float near, far;
 
+#include "/configs.glsl"
+
 float norm2(in vec3 a, in vec3 b) {
     a -= b;
     return dot(a, a);
@@ -59,6 +61,12 @@ vec2 project_skybox2uv(vec3 nwpos) {
     rad += vec2(step(0.0, -rad.x) * (PI * 2.0), PI * 0.5);
     rad *= 0.125 / PI;
     return rad;
+}
+
+vec3 sampleLODmanual(sampler2D s, vec2 uv, int lod)
+{
+    float h_offset = (1.0 - pow(0.5, float(lod)));
+    return texture(s, uv * pow(0.5, float(lod)) + vec2(h_offset, 0.0)).rgb;
 }
 
 uniform sampler2D depthtex0;
@@ -112,32 +120,32 @@ vec3 world2shadowView(in vec3 world_pos) {
 vec3 shadowProjCascaded(in vec3 spos, out float scale, out float dscale) {
     float largest_axis = max(abs(spos.x), abs(spos.y));
 
-    if (largest_axis < 0.495) {
+    if (largest_axis < CSMLevel0 * 0.5 - 0.05) {
         // Top Left
-        spos.xy *= 1.0;
-        spos.z *= 0.5;
-        scale = 1.0;
+        spos.xy *= invCSMLevel0;
+        spos.z *= invCSMLevel0;
+        scale = invCSMLevel0;
         dscale = 2.0;
         spos.xy += vec2(-0.5, 0.5);
-    } else if (largest_axis < 1.9) {
+    } else if (largest_axis < CSMLevel1 * 0.5 - 0.05) {
         // Top Right
-        spos.xy *= 0.25;
-        spos.z *= 0.5;
-        scale = 0.25;
+        spos.xy *= invCSMLevel1;
+        spos.z *= invCSMLevel1;
+        scale = invCSMLevel1;
         dscale = 2.0;
         spos.xy += vec2(0.5, 0.5);
-    } else if (largest_axis < 3.8) {
+    } else if (largest_axis < CSMLevel2 * 0.5 - 0.05) {
         // Bottom Left
-        spos.xy *= 0.125;
-        spos.z *= 0.25;
-        scale = 0.5;
+        spos.xy *= invCSMLevel2;
+        spos.z *= invCSMLevel2;
+        scale = invCSMLevel2;
         dscale = 4.0;
         spos.xy += vec2(-0.5, -0.5);
-    } else if (largest_axis < 16) {
+    } else if (largest_axis < CSMLevel3 * 0.5) {
         // Bottom Right
-        spos.xy *= 0.03125;
-        spos.z *= 0.0625;
-        scale = 0.25;
+        spos.xy *= invCSMLevel3;
+        spos.z *= invCSMLevel3;
+        scale = invCSMLevel3;
         dscale = 16.0;
         spos.xy += vec2(0.5, -0.5);
     } else {
@@ -161,16 +169,16 @@ vec3 world2shadowProj(in vec3 world_pos) {
 float sposLinear(in vec3 spos) {
     float largest_axis = max(abs(spos.x), abs(spos.y));
 
-    if (largest_axis < 0.495) {
+    if (largest_axis < CSMLevel0 * 0.5 - 0.05) {
         // Top Left
         return spos.z * 2.0;
-    } else if (largest_axis < 1.9) {
+    } else if (largest_axis < CSMLevel1 * 0.5 - 0.05) {
         // Top Right
         return spos.z * 2.0;
-    } else if (largest_axis < 3.8) {
+    } else if (largest_axis < CSMLevel2 * 0.5 - 0.05) {
         // Bottom Left
         return spos.z * 4.0;
-    } else if (largest_axis < 16) {
+    } else if (largest_axis < CSMLevel3 * 0.5 - 0.05) {
         // Bottom Right
         return spos.z * 16.0;
     } else {

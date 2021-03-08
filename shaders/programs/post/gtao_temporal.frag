@@ -4,8 +4,6 @@ uniform sampler2D colortex9;
 
 /* RENDERTARGETS: 9 */
 
-const bool colortex9Clear = false;
-
 uniform vec2 invWidthHeight;
 
 void main()
@@ -21,7 +19,7 @@ void main()
 
     float history = clamp(texture(colortex9, history_uv * 0.5).r, 0.0, 1.0);
 
-    float weight = 0.1;
+    float weight = 0.2;
     
     if (history_uv.x < 0.0 || history_uv.x >= 1.0 || history_uv.y < 0.0 || history_uv.y >= 1.0) weight = 1.0;
 

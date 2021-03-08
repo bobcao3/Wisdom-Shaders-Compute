@@ -7,6 +7,7 @@ VERTEX_INOUT VertexOut {
     // flat vec2 normal_enc;
     vec3 normal;
     float view_z;
+    vec2 lmcoord;
 };
 
 #ifdef FRAGMENT
@@ -25,9 +26,7 @@ void main()
 
     gl_FragData[0] = albedo; // Albedo
     gl_FragData[1] = vec4(normal, 1.0); // Depth, Flag, Normal
-#ifdef SPECULAR
-    gl_FragData[2] = vec4(0.0); // F0, Smoothness
-#endif
+    gl_FragData[2] = vec4(lmcoord, 0.0, 0.0); // F0, Smoothness
 }
 
 #endif
@@ -50,6 +49,8 @@ void main()
     normal = normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz);
 
     uv = gl_MultiTexCoord0.st;
+
+    lmcoord = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
 
     gl_Position.st += taaOffset * gl_Position.w;
 }
