@@ -117,44 +117,6 @@ vec3 world2shadowView(in vec3 world_pos) {
     return (shadowModelView * vec4(world_pos, 1.0)).xyz;
 }
 
-vec3 shadowProjCascaded(in vec3 spos, out float scale, out float dscale) {
-    float largest_axis = max(abs(spos.x), abs(spos.y));
-
-    if (largest_axis < CSMLevel0 * 0.5 - 0.05) {
-        // Top Left
-        spos.xy *= invCSMLevel0;
-        spos.z *= invCSMLevel0;
-        scale = invCSMLevel0;
-        dscale = 2.0;
-        spos.xy += vec2(-0.5, 0.5);
-    } else if (largest_axis < CSMLevel1 * 0.5 - 0.05) {
-        // Top Right
-        spos.xy *= invCSMLevel1;
-        spos.z *= invCSMLevel1;
-        scale = invCSMLevel1;
-        dscale = 2.0;
-        spos.xy += vec2(0.5, 0.5);
-    } else if (largest_axis < CSMLevel2 * 0.5 - 0.05) {
-        // Bottom Left
-        spos.xy *= invCSMLevel2;
-        spos.z *= invCSMLevel2;
-        scale = invCSMLevel2;
-        dscale = 4.0;
-        spos.xy += vec2(-0.5, -0.5);
-    } else if (largest_axis < CSMLevel3 * 0.5) {
-        // Bottom Right
-        spos.xy *= invCSMLevel3;
-        spos.z *= invCSMLevel3;
-        scale = invCSMLevel3;
-        dscale = 16.0;
-        spos.xy += vec2(0.5, -0.5);
-    } else {
-        spos = vec3(-1);
-    }
-
-    return spos * 0.5 + 0.5;
-}
-
 mat4 shadowMVP = shadowProjection * shadowModelView;
 
 vec3 world2shadowProj(in vec3 world_pos) {
@@ -163,27 +125,9 @@ vec3 world2shadowProj(in vec3 world_pos) {
     shadow_proj_pos.xyz /= shadow_proj_pos.w;
     vec3 spos = shadow_proj_pos.xyz;
 
+    spos.xy /= length(spos.xy) * 0.85 + 0.15;
+
     return spos;
-}
-
-float sposLinear(in vec3 spos) {
-    float largest_axis = max(abs(spos.x), abs(spos.y));
-
-    if (largest_axis < CSMLevel0 * 0.5 - 0.05) {
-        // Top Left
-        return spos.z * 2.0;
-    } else if (largest_axis < CSMLevel1 * 0.5 - 0.05) {
-        // Top Right
-        return spos.z * 2.0;
-    } else if (largest_axis < CSMLevel2 * 0.5 - 0.05) {
-        // Bottom Left
-        return spos.z * 4.0;
-    } else if (largest_axis < CSMLevel3 * 0.5 - 0.05) {
-        // Bottom Right
-        return spos.z * 16.0;
-    } else {
-        return 1.0;
-    }
 }
 
 #endif

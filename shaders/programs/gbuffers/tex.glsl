@@ -8,6 +8,7 @@ VERTEX_INOUT VertexOut {
     vec3 normal;
     float view_z;
     vec2 lmcoord;
+    flat int blockId;
 };
 
 #ifdef FRAGMENT
@@ -25,7 +26,7 @@ void main()
     albedo.rgb = fromGamma(albedo.rgb);
 
     gl_FragData[0] = albedo; // Albedo
-    gl_FragData[1] = vec4(normal, 1.0); // Depth, Flag, Normal
+    gl_FragData[1] = vec4(normal, (blockId == 29 || blockId == 30) ? 1.0 : 0.0); // Depth, Flag, Normal
     gl_FragData[2] = vec4(lmcoord, 0.0, 0.0); // F0, Smoothness
 }
 
@@ -36,6 +37,8 @@ void main()
 #include "/libs/encode.glsl"
 
 uniform vec2 taaOffset;
+
+attribute vec2 mc_Entity;
 
 void main()
 {
@@ -51,6 +54,8 @@ void main()
     uv = gl_MultiTexCoord0.st;
 
     lmcoord = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
+
+    blockId = int(mc_Entity.x);
 
     gl_Position.st += taaOffset * gl_Position.w;
 }

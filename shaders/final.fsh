@@ -9,11 +9,14 @@ const int colortex3Format = R11F_G11F_B10F; // Skybox
 const int colortex4Format = R32F; // Depth chain
 
 const int colortex6Format = RGBA8; // Albedo
-const int colortex7Format = RGB8_SNORM; // Normals
+const int colortex7Format = RGBA8_SNORM; // Normals
 const int colortex8Format = RGBA8; // Specular
 
 const int colortex9Format = R16F; // AO temporal
 const int colortex10Format = R11F_G11F_B10F; // Color temporal
+
+const int shadowcolor0Format = RGBA8;
+const int shadowcolor1Format = RG32F;
 
 const bool colortex3Clear = false;
 const bool colortex9Clear = false;
@@ -35,6 +38,8 @@ uniform sampler2D colortex8;
 uniform sampler2D colortex9;
 
 uniform sampler2D shadowtex0;
+uniform sampler2D shadowcolor0;
+uniform sampler2D shadowcolor1;
 
 uniform vec2 invWidthHeight;
 
@@ -53,7 +58,7 @@ void main()
 
     color = ACESFitted(toGamma(color)) * 1.1;
 
-    // color = texelFetch(shadowtex0, iuv, 0).rrr;
+    // color = vec3(texelFetch(shadowcolor1, iuv, 0).rgb);
 
     gl_FragColor = vec4(color, 1.0);
 }
