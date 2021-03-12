@@ -21,11 +21,11 @@ const float Ra = 5170e3;
 const float Hr = 15e3;
 const float Hm = 2.6e3;
 
-const vec3 I0 = vec3(10.0) * vec3(1.0, 0.8794, 0.8267); // Adjust for D65
+const vec3 I0 = vec3(40.0) * vec3(1.0, 0.8794, 0.8267); // Adjust for D65
 
 #define CLOUD_STEPS 6 // [2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32]
 
-const int steps = 6;
+const int steps = 10;
 const int stepss = 20;
 
 vec3 I = I0; // * (1.0 - cloud_coverage * 0.7);
@@ -50,6 +50,8 @@ void densities(in vec3 pos, out vec2 des) {
 	des.x += exp(-abs(h - 25e3) / 5e3) * 0.15;
 
 	des.y = exp(-h/Hm) * (1.0 + rainStrength2 * 3.0);
+
+	des.y += clamp(exp(-(h - 200.0) / 100.0), 0.0, 5.0) * (1.0 + rainStrength2 * 10.0);
 }
 
 #define CLOUDS_2D
@@ -159,8 +161,6 @@ void inScatter(vec3 p, vec3 D, float radius, vec2 depth, vec2 des, float nseed, 
 
 // this can be explained: http://www.scratchapixel.com/lessons/3d-advanced-lessons/simulating-the-colors-of-the-sky/atmospheric-scattering/
 vec4 scatter(vec3 o, vec3 d, vec3 Ds, float lmax, float nseed) {
-	// if (d.y < 0.0) d.y = 0.0;
-	
 	float L = min(lmax, escape(o, d, Ra));
 
 	float phaseM, phaseR;
@@ -186,7 +186,8 @@ vec4 scatter(vec3 o, vec3 d, vec3 Ds, float lmax, float nseed) {
 	vec3 R = vec3(0.0), M = vec3(0.0), Mc = vec3(0.0);
 	vec3 R_moon = vec3(0.0), M_moon = vec3(0.0), Mc_moon = vec3(0.0);
 
-	float u0 = - (L - 1.0) / (1.0 - exp2(steps));
+	float u0 = - (L - 1.0) / (1.0 - exp2(steps + 1));
+	float total = 0.0;
 	for (int i = 0; i < steps; ++i) {
 		float dl, l;
 
@@ -200,9 +201,21 @@ vec4 scatter(vec3 o, vec3 d, vec3 Ds, float lmax, float nseed) {
 		des *= vec2(dl);
 		depth += des;
 
+#ifdef VL
+		float shadow_depth;
+
+        vec3 shadow_pos_linear = world2shadowProj(d * l) * 0.5 + 0.5;
+
+        float shadow = shadowTexSmooth(shadowtex1, shadow_pos_linear, shadow_depth, 0.0);
+
+		vec3 Ri, Mi;
+		inScatter(p, Ds, Ra, depth, des, nseed, Ri, Mi); R += Ri * shadow; M += Mi * shadow;
+		inScatter(p, -Ds, Ra, depth, des, nseed, Ri, Mi); R_moon += Ri * shadow; M_moon += Mi * shadow;
+#else
 		vec3 Ri, Mi;
 		inScatter(p, Ds, Ra, depth, des, nseed, Ri, Mi); R += Ri; M += Mi;
 		inScatter(p, -Ds, Ra, depth, des, nseed, Ri, Mi); R_moon += Ri; M_moon += Mi;
+#endif
 	}
 
 #ifdef DISABLE_MIE
@@ -215,7 +228,7 @@ vec4 scatter(vec3 o, vec3 d, vec3 Ds, float lmax, float nseed) {
 
 	float transmittance = exp(-(bM.x * depth.y));
 
-	return max(vec4(0.0), vec4(color * 4.0, transmittance));
+	return max(vec4(0.0), vec4(color, transmittance));
 }
 
 float noisyStarField(vec3 dir)
@@ -248,7 +261,7 @@ vec3 starField(vec3 dir)
 
 	float star = pow1d5(mix(s0, s1, t.x));
 
-	return star * smoothstep(0.0, 500.0, dir.y) * vec3(1.0 - star * 0.8, 1.0, 1.0 + star * 0.8);
+	return star * vec3(1.0 - star * 0.8, 1.0, 1.0 + star * 0.8);
 }
 
 #endif

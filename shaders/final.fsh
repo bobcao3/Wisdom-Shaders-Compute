@@ -37,7 +37,7 @@ uniform sampler2D colortex7;
 uniform sampler2D colortex8;
 uniform sampler2D colortex9;
 
-uniform sampler2D shadowtex0;
+uniform sampler2D shadowtex1;
 uniform sampler2D shadowcolor0;
 uniform sampler2D shadowcolor1;
 
@@ -56,7 +56,7 @@ void main()
 
     // color = vec3(sampleLODmanual(colortex3, vec2(iuv) * invWidthHeight, 5).rgb);
 
-    color = ACESFitted(toGamma(color)) * 1.1;
+    color = ACESFitted(toGamma(color * 3.0)) * 1.1;
 
     // color = vec3(texelFetch(shadowcolor1, iuv, 0).rgb);
 

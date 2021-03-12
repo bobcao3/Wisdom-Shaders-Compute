@@ -1,6 +1,6 @@
 #include "/libs/compat.glsl"
 
-uniform sampler2D shadowtex0;
+uniform sampler2D shadowtex1;
 uniform sampler2D shadowcolor1;
 
 float gaussian[] = float[] (
@@ -21,7 +21,7 @@ void main()
         ivec2 sample_uv = iuv + DIR(i);
         
 #ifdef INITIAL
-        float depth = texelFetch(shadowtex0, sample_uv, 0).r;
+        float depth = texelFetch(shadowtex1, sample_uv, 0).r;
 
         e_x += depth * gaussian[i + 2];
         e_x2 += (depth * depth) * gaussian[i + 2];
