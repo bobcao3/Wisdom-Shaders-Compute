@@ -17,11 +17,11 @@ const float g = .76;
 const float g2 = g * g;
 
 const float R0 = 5000e3;
-const float Ra = 5170e3;
+const float Ra = 5100e3;
 const float Hr = 15e3;
 const float Hm = 2.6e3;
 
-const vec3 I0 = vec3(40.0) * vec3(1.0, 0.8794, 0.8267); // Adjust for D65
+const vec3 I0 = vec3(40.0);
 
 #define CLOUD_STEPS 6 // [2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32]
 
@@ -37,22 +37,8 @@ const vec3 bMc = vec3(1e-7);
 
 const mat2 octave_c = mat2(1.4,1.2,-1.2,1.4);
 
-const float cloudAltitude = 9.0e3;
-const float cloudDepth = 3.0e3;
-
-void densities(in vec3 pos, out vec2 des) {
-	// des.x = Rayleigh
-	// des.y = Mie
-	float h = max(0.0, length(pos - C) - R0);
-	des.x = min(0.5, exp(-h/Hr));
-
-	// Add Ozone layer densities
-	des.x += exp(-abs(h - 25e3) / 5e3) * 0.15;
-
-	des.y = exp(-h/Hm) * (1.0 + rainStrength2 * 3.0);
-
-	des.y += clamp(exp(-(h - 200.0) / 100.0), 0.0, 5.0) * (1.0 + rainStrength2 * 10.0);
-}
+const float cloudAltitude = 15.0e3;
+const float cloudDepth = 1.0e3;
 
 #define CLOUDS_2D
 
@@ -80,6 +66,28 @@ float cloud2d(in vec3 sphere, in vec3 cam) {
 	return n;
 }
 #endif
+
+
+void densities(in vec3 pos, out vec2 des) {
+	// des.x = Rayleigh
+	// des.y = Mie
+	float h = max(0.0, length(pos - C) - R0);
+	des.x = min(0.5, exp(-h/Hr));
+
+	// Add Ozone layer densities
+	des.x += exp(-abs(h - 25e3) / 5e3) * 0.15;
+
+	des.y = exp(-h/Hm) * (1.0 + rainStrength2 * 3.0);
+
+	des.y += clamp(exp(-(h - 200.0) / 100.0), 0.0, 5.0);
+
+	float cloud_mult = smoothstep(0.0, cloudDepth, abs(h - cloudAltitude)) * clamp(2.0 - length(pos) / 100e3, 0.0, 1.0);
+
+	if (cloud_mult > 0.1)
+	{
+		des.y += cloud_mult * cloud2d(pos, vec3(0.0));
+	}
+}
 
 float escape(in vec3 p, in vec3 d, in float R) {
 	vec3 v = p - C;

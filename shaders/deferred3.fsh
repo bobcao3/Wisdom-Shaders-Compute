@@ -2,4 +2,4 @@
 
 #include "/libs/compat.glsl"
 
-#include "/programs/post/deferred_lighting.comp"
+#include "/programs/post/deferred_lighting.glsl"

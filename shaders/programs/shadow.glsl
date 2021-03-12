@@ -69,7 +69,7 @@ void main() {
     gl_Position = gl_ProjectionMatrix * shadow_view_pos;
 
     gl_Position.xy /= length(gl_Position.xy) * 0.85 + 0.15;
-    gl_Position.z *= 0.3;
+    gl_Position.z *= 0.5;
 }
 
 #else

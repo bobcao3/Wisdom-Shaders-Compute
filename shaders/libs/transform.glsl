@@ -126,7 +126,7 @@ vec3 world2shadowProj(in vec3 world_pos) {
     vec3 spos = shadow_proj_pos.xyz;
 
     spos.xy /= length(spos.xy) * 0.85 + 0.15;
-    spos.z *= 0.3;
+    spos.z *= 0.5;
 
     return spos;
 }

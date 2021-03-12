@@ -1,6 +1,6 @@
-layout (local_size_x = 8, local_size_y = 8) in;
+// layout (local_size_x = 8, local_size_y = 8) in;
 
-const vec2 workGroupsRender = vec2(1.0f, 1.0f);
+// const vec2 workGroupsRender = vec2(1.0f, 1.0f);
 
 uniform int frameCounter;
 uniform float aspectRatio;
@@ -91,7 +91,7 @@ float VSM(float t, vec2 uv)
 
     float p_max = (var + 1e-7) / (var + pow2(max(0.0, t - e_x)) + 1e-7);
 
-    const float c = 600;
+    const float c = 500;
 
     float depth_test_exp = clamp(exp(-c * (t - e_x)), 0.0, 1.0);
 
@@ -123,9 +123,11 @@ vec3 orenNayarDiffuse(vec3 lightDirection, vec3 viewDirection, vec3 surfaceNorma
     return albedo * max(vec3(subsurface), NdotL * (A + B * s / t)) / PI;
 }
 
+/* RENDERTARGETS: 2 */
+
 void main()
 {
-    ivec2 iuv = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 iuv = ivec2(gl_FragCoord.xy);
     vec2 uv = (vec2(iuv) + 0.5) * invWidthHeight;
 
     float depth = texelFetch(depthtex0, iuv, 0).r;
@@ -225,12 +227,12 @@ void main()
 
         if (normal_flag_encoded.a < 0.0)
         {
-            color = albedo * 3.14;
+            color = albedo * 1.5;
         }
     }
     else
     {
-        color += starField(world_dir) * 5.0;
+        color += starField(world_dir);
         color += smoothstep(0.9999, 0.99991, dot(world_sun_dir, world_dir)) * texelFetch(colortex3, ivec2(viewWidth - 1, 0), 0).rgb * 20.0;        
     }
 
@@ -246,5 +248,7 @@ void main()
     vec4 skybox_color = scatter(vec3(0.0, cameraPosition.y, 0.0), world_dir, world_sun_dir, l_limit, hash1d);
     color = color * skybox_color.a + skybox_color.rgb;
 
-    imageStore(colorimg2, iuv, vec4(color, 0.0));
+    // imageStore(colorimg2, iuv, vec4(color, 0.0));
+
+    gl_FragData[0] = vec4(color, 0.0);
 }
