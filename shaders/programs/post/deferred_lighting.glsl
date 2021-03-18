@@ -20,7 +20,7 @@ layout (r11f_g11f_b10f) uniform image2D colorimg2;
 #include "/libs/transform.glsl"
 #include "/libs/noise.glsl"
 
-#include "./gtao_spatial.glsl"
+#include "/programs/post/gtao_spatial.glsl"
 
 #include "/configs.glsl"
 
@@ -125,7 +125,7 @@ vec3 getF(float metalic, float roughness, float cosTheta, vec3 albedo)
 		return fresnelSchlickRoughness(cosTheta, vec3(metalic_generated), roughness);
     }
 
-	#include "materials.glsl"
+	#include "/programs/post/materials.glsl"
 
 	cosTheta = max(0.01, abs(cosTheta));
 

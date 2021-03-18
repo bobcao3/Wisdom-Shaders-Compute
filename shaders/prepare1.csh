@@ -8,7 +8,7 @@ layout (r11f_g11f_b10f) uniform image2D colorimg3;
 
 const vec2 workGroupsRender = vec2(0.3f, 0.13f);
 
-#include "libs/compat.glsl"
+#include "/libs/compat.glsl"
 
 // #define DISABLE_MIE
 

@@ -4,9 +4,9 @@
 #define VECTORS
 #define TIME
 
-#include "uniforms.glsl"
-#include "transform.glsl"
-#include "noise.glsl"
+#include "/libs/uniforms.glsl"
+#include "/libs/transform.glsl"
+#include "/libs/noise.glsl"
 
 float day = float(worldTime) / 24000.0;
 float day_cycle = mix(float(moonPhase), mod(float(moonPhase + 1), 8.0), day) + frameTimeCounter * 0.0001;
