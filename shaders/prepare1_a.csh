@@ -34,7 +34,7 @@ void main()
         if (biomeCategory != 16) {
             vec3 world_sun_dir = mat3(gbufferModelViewInverse) * (sunPosition * 0.01);
 
-            skybox = scatter(vec3(0.0, cameraPosition.y, 0.0), world_sun_dir, world_sun_dir, Ra, 0.9);
+            skybox = scatter(vec3(0.0, cameraPosition.y, 0.0), world_sun_dir, world_sun_dir, Ra, 0.9, false);
 
             // skybox.rgb += vec3(dot(skybox.rgb, vec3(1.0)) * rainStrength2);
 

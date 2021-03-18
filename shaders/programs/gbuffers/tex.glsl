@@ -18,6 +18,7 @@ VERTEX_INOUT VertexOut {
 #ifdef FRAGMENT
 
 uniform sampler2D tex;
+uniform sampler2D specular;
 
 /* RENDERTARGETS: 6,7,8 */
 
@@ -70,9 +71,11 @@ void main()
     
     albedo.rgb = fromGamma(albedo.rgb);
 
+    vec4 spec = texture(specular, uv);
+
     gl_FragData[0] = albedo; // Albedo
     gl_FragData[1] = vec4(normal, flag); // Depth, Flag, Normal
-    gl_FragData[2] = vec4(lmcoord, 0.0, 0.0); // F0, Smoothness
+    gl_FragData[2] = vec4(lmcoord, spec.rg); // F0, Smoothness
 }
 
 #endif
@@ -108,7 +111,7 @@ void main()
 
     if (blockId == 29 || blockId == 30 || blockId == 33)
         flag = 1.0;
-    else if (blockId >= 9200 || lmcoord.x > 0.965)
+    else if (blockId >= 9200 || lmcoord.x > 0.97)
         flag = -1.0;
     else
         flag = 0.0;

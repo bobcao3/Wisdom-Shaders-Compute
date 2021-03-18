@@ -24,7 +24,7 @@ uniform vec2 invWidthHeight;
 
 uniform sampler2D tex;
 
-/* RENDERTARGETS: 11,7,8 */
+/* RENDERTARGETS: 11,6,7,8 */
 
 #include "/libs/color.glslinc"
 
@@ -76,9 +76,12 @@ void main()
     
     albedo.rgb = fromGamma(albedo.rgb);
 
+    if (albedo.a < 0.1) discard;
+
     gl_FragData[0] = albedo; // Albedo
-    gl_FragData[1] = vec4(normal, flag); // Depth, Flag, Normal
-    gl_FragData[2] = vec4(lmcoord, 0.0, 0.0); // F0, Smoothness
+    gl_FragData[1] = vec4(1.0); // Depth, Flag, Normal
+    gl_FragData[2] = vec4(normal, flag); // Depth, Flag, Normal
+    gl_FragData[3] = vec4(lmcoord, 0.999, 0.0); // F0, Smoothness
 }
 
 #endif

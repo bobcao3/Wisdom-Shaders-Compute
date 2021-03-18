@@ -1,0 +1,58 @@
+#include "/libs/compat.glsl"
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+const vec2 workGroupsRender = vec2(0.5f, 0.5f);
+
+uniform sampler2D colortex4;
+uniform sampler2D colortex5;
+uniform sampler2D colortex7;
+
+layout (r11f_g11f_b10f) uniform image2D colorimg5;
+
+float gaussian[] = float[] (
+    0.06136, 0.24477, 0.38774, 0.24477, 0.06136
+);
+
+uniform float viewWidth;
+uniform float viewHeight;
+
+void main()
+{
+    ivec2 iuv = ivec2(gl_GlobalInvocationID.xy);
+
+    float depth = texelFetch(colortex4, iuv, 0).r;
+
+    if (depth >= 1.0) return;
+
+    vec3 normal = texelFetch(colortex7, iuv * 2, 0).rgb;
+
+    vec3 color = vec3(0.0);
+    float weight = 0.0001;
+
+    vec3 center_color = texelFetch(colortex5, iuv, 0).rgb;
+
+    for (int i = -2; i <= 2; i++)
+    {
+        for (int j = -2; j <= 2; j++)
+        {
+            ivec2 offset = ivec2(i, j) * STRIDE;
+
+            ivec2 sample_uv = clamp(iuv + offset, ivec2(0), ivec2(floor(viewWidth * 0.5) - 1, floor(viewHeight * 0.5) - 1));
+            vec3 sample_normal = texelFetch(colortex7, sample_uv * 2, 0).rgb;
+
+            vec3 sample_color = texelFetch(colortex5, sample_uv, 0).rgb;
+            vec3 color_diff = sample_color - center_color;
+
+            float sample_weight = gaussian[i + 2] * gaussian[j + 2] * pow4(dot(normal, sample_normal));
+
+            if (isnan(sample_color.r)) continue;
+
+            color += sample_color * sample_weight;
+            weight += sample_weight;
+        }
+    }
+
+    imageStore(colorimg5, iuv, vec4(color / weight, 0.0));
+
+}

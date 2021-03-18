@@ -7,6 +7,7 @@ const int colortex1Format = RG16F; // Motion vector
 const int colortex2Format = R11F_G11F_B10F; // Composite
 const int colortex3Format = R11F_G11F_B10F; // Skybox
 const int colortex4Format = R32F; // Depth chain
+const int colortex5Format = R11F_G11F_B10F; // Composite 2
 
 const int colortex6Format = RGBA8; // Albedo
 const int colortex7Format = RGBA8_SNORM; // Normals
@@ -15,6 +16,7 @@ const int colortex8Format = RGBA8; // Specular
 const int colortex9Format = R16F; // AO temporal
 const int colortex10Format = R11F_G11F_B10F; // Color temporal
 const int colortex11Format = RGBA16F; // Color temporal
+const int colortex12Format = R11F_G11F_B10F; // SSPT temporal
 
 const int shadowcolor0Format = RGBA8;
 const int shadowcolor1Format = RG32F;
@@ -22,6 +24,7 @@ const int shadowcolor1Format = RG32F;
 const bool colortex3Clear = false;
 const bool colortex9Clear = false;
 const bool colortex10Clear = false;
+const bool colortex12Clear = false;
 
 */
 
@@ -83,7 +86,7 @@ void main()
  
     // color = texelFetch(colortex11, iuv, 0).rgb;
 
-    color = luma(color) * pow(color / luma(color), vec3(1.2));
+    // color = luma(color) * pow(color / luma(color), vec3(1.2));
 
     color = ACESFitted(toGamma(color)) * 1.1;
 

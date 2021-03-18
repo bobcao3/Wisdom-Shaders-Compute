@@ -17,11 +17,11 @@ const float g = .76;
 const float g2 = g * g;
 
 const float R0 = 5000e3;
-const float Ra = 5100e3;
+const float Ra = 5050e3;
 const float Hr = 15e3;
 const float Hm = 2.6e3;
 
-const vec3 I0 = vec3(40.0);
+const vec3 I0 = vec3(30.0);
 
 #define CLOUD_STEPS 6 // [2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32]
 
@@ -37,19 +37,13 @@ const vec3 bMc = vec3(1e-7);
 
 const mat2 octave_c = mat2(1.4,1.2,-1.2,1.4);
 
-const float cloudAltitude = 15.0e3;
+const float cloudAltitude = 5.0e3;
 const float cloudDepth = 1.0e3;
 
 #define CLOUDS_2D
 
 #ifdef CLOUDS_2D
-float cloud2d(in vec3 sphere, in vec3 cam) {
-	if (sphere.y < 0.0) return 0.0;
-
-	vec3 c = sphere / max(sphere.y, 0.001) * 768.0;
-	c += noise((c.xz + cam.xz) * 0.001 + frameTimeCounter * 0.01) * 200.0 / sphere.y;
-	vec2 uv = (c.xz + cam.xz);
-
+float cloud2d(in vec2 uv, in vec3 cam) {
 	uv.x += frameTimeCounter * 10.0;
 	uv *= 0.002;
 	float n  = noise(uv * vec2(0.5, 1.0)) * 0.5;
@@ -61,12 +55,9 @@ float cloud2d(in vec3 sphere, in vec3 cam) {
 		  n += noise(uv) * 0.0625;
 	n = smoothstep(0.0, 1.0, n - 0.3 + cloud_coverage);
 
-	n *= smoothstep(0.0, 140.0, sphere.y) * 0.2;
-
 	return n;
 }
 #endif
-
 
 void densities(in vec3 pos, out vec2 des) {
 	// des.x = Rayleigh
@@ -79,14 +70,8 @@ void densities(in vec3 pos, out vec2 des) {
 
 	des.y = exp(-h/Hm) * (1.0 + rainStrength2 * 3.0);
 
-	des.y += clamp(exp(-(h - 200.0) / 100.0), 0.0, 5.0);
-
-	float cloud_mult = smoothstep(0.0, cloudDepth, abs(h - cloudAltitude)) * clamp(2.0 - length(pos) / 100e3, 0.0, 1.0);
-
-	if (cloud_mult > 0.1)
-	{
-		des.y += cloud_mult * cloud2d(pos, vec3(0.0));
-	}
+	des.y += clamp(exp(-(h - 2000.0) / 1000.0), 0.0, 5.0) * (0.5 + rainStrength2 * 5.0);
+	// des.y += clamp(exp(-(h - 200.0) / 200.0), 0.0, 5.0) * 6.0;
 }
 
 float escape(in vec3 p, in vec3 d, in float R) {
@@ -168,7 +153,7 @@ void inScatter(vec3 p, vec3 D, float radius, vec2 depth, vec2 des, float nseed, 
 }
 
 // this can be explained: http://www.scratchapixel.com/lessons/3d-advanced-lessons/simulating-the-colors-of-the-sky/atmospheric-scattering/
-vec4 scatter(vec3 o, vec3 d, vec3 Ds, float lmax, float nseed) {
+vec4 scatter(vec3 o, vec3 d, vec3 Ds, float lmax, float nseed, bool cloud) {
 	float L = min(lmax, escape(o, d, Ra));
 
 	float phaseM, phaseR;

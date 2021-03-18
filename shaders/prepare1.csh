@@ -10,7 +10,7 @@ const vec2 workGroupsRender = vec2(0.3f, 0.13f);
 
 #include "libs/compat.glsl"
 
-#define DISABLE_MIE
+// #define DISABLE_MIE
 
 uniform vec2 invWidthHeight;
 
@@ -37,7 +37,7 @@ void main()
             vec3 dir = project_uv2skybox(vec2(iuv) * invWidthHeight);
             vec3 world_sun_dir = mat3(gbufferModelViewInverse) * (sunPosition * 0.01);
 
-            skybox = scatter(vec3(0.0, cameraPosition.y, 0.0), dir, world_sun_dir, Ra, 0.9);
+            skybox = scatter(vec3(0.0, cameraPosition.y, 0.0), dir, world_sun_dir, Ra, 0.9, false);
 
             skybox.rgb += vec3(dot(skybox.rgb, vec3(1.0)) * rainStrength2);
         } else {
