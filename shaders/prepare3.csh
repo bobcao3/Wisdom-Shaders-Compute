@@ -8,6 +8,8 @@ layout (r11f_g11f_b10f) uniform image2D colorimg3;
 
 const vec2 workGroupsRender = vec2(0.0078125f, 0.00390625f);
 
+#include "/libs/compat.glsl"
+
 uniform int frameCounter;
 
 // uniform float viewWidth;

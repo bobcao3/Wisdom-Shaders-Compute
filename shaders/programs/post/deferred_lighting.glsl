@@ -1,7 +1,3 @@
-layout (local_size_x = 8, local_size_y = 8) in;
-
-const vec2 workGroupsRender = vec2(0.5f, 0.5f);
-
 uniform int frameCounter;
 uniform float aspectRatio;
 
@@ -122,7 +118,7 @@ vec3 getF(float metalic, float roughness, float cosTheta, vec3 albedo)
     {
         float metalic_generated = 1.0 - metalic * (229.0 / 255.0);
         metalic_generated = pow(metalic_generated, 2.0);
-		return fresnelSchlickRoughness(cosTheta, vec3(metalic_generated), roughness);
+		return fresnelSchlickRoughness(cosTheta, vec3(metalic_generated), roughness) * albedo;
     }
 
 	#include "/programs/post/materials.glsl"
@@ -136,7 +132,7 @@ vec3 getF(float metalic, float roughness, float cosTheta, vec3 albedo)
 	vec3 Rs = (N2K2 - NcosTheta + cosTheta2) / (N2K2 + NcosTheta + cosTheta2);
 	vec3 Rp = (N2K2 * cosTheta2 - NcosTheta + 1.0) / (N2K2 * cosTheta2 + NcosTheta + 1.0);
 
-	return (Rs + Rp) * 0.5;
+	return (Rs + Rp) * 0.5 * albedo;
 }
 
 vec3 brdf_ggx_oren_schlick(vec3 albedo, vec3 radiance, float roughness, float metalic, float subsurface, vec3 F, vec3 L, vec3 N, vec3 V)
@@ -150,7 +146,7 @@ vec3 brdf_ggx_oren_schlick(vec3 albedo, vec3 radiance, float roughness, float me
 	float NdotL = min(float(1.0), max(float(dot(N, L)), float(subsurface)));                
 	
 	vec3 numerator    = NDF * G * F;
-	float denominator = float(4.0) * max(float(dot(N, V)), float(0.005)) * max(NdotL, float(0.005));
+	float denominator = float(4.0) * max(NdotL, float(0.005)); // * max(float(dot(N, -V)), float(0.005));
 	vec3 specular     = numerator / denominator;  
 	
 	return vec3(max(vec3(0.0), (kD * albedo / float(3.1415926) + specular) * radiance * NdotL));
@@ -228,7 +224,7 @@ vec3 orenNayarDiffuse(vec3 lightDirection, vec3 viewDirection, vec3 surfaceNorma
 
 float screen_space_shadows(vec3 view_pos, vec3 view_dir, float nseed)
 {
-    float step_length = 0.02;
+    float step_length = 0.03;
 
     // if (view_pos.z < -20.0) return 1.0;
 
@@ -286,112 +282,111 @@ vec3 compute_lighting(ivec2 iuv, float depth)
 
     vec3 world_sun_dir = mat3(gbufferModelViewInverse) * (sunPosition * 0.01);
 
-    if (depth < 1.0)
+#if GROUP == 1
+    vec3 albedo = texelFetch(colortex6, iuv, 0).rgb;
+
+    vec4 normal_flag_encoded = texelFetch(colortex7, iuv, 0);
+
+    // --------------------------------------------------------------------
+    //  IBL + AO (Indirect)
+    // --------------------------------------------------------------------
+    vec3 image_based_lighting = vec3(0.0);
+
+    #define LIGHTING_SAMPLES 4 // [4 8 16]
+
+    vec4 lm_specular_encoded = texelFetch(colortex8, iuv, 0).rgba;
+    vec2 lmcoord = lm_specular_encoded.rg;
+
+    float roughness = (1.0 - lm_specular_encoded.b);
+    float metalic = lm_specular_encoded.a;
+
+    vec3 view_normal = normal_flag_encoded.rgb;
+    vec3 world_normal = normalize(mat3(gbufferModelViewInverse) * view_normal);
+
+    for (int i = 0; i < LIGHTING_SAMPLES; i++)
     {
-        vec3 albedo = texelFetch(colortex6, iuv, 0).rgb;
+        vec2 rand2d = fract(vec2(hash0, hash1) + WeylNth(i + (frameCounter & 0xF) * LIGHTING_SAMPLES));
 
-        vec4 normal_flag_encoded = texelFetch(colortex7, iuv, 0);
+        float pdf;
+        vec3 sample_dir = ImportanceSampleGGX(rand2d, world_normal, -world_dir, roughness, pdf);
+        // vec3 sample_dir = normalize(2.0 * dot(-world_dir, H) * H + world_dir);
 
-        // --------------------------------------------------------------------
-        //  IBL + AO (Indirect)
-        // --------------------------------------------------------------------
-        vec3 image_based_lighting = vec3(0.0);
-
-        #define LIGHTING_SAMPLES 4 // [4 8 16]
-
-        vec4 lm_specular_encoded = texelFetch(colortex8, iuv, 0).rgba;
-        vec2 lmcoord = lm_specular_encoded.rg;
-
-        float roughness = (1.0 - lm_specular_encoded.b);
-        float metalic = lm_specular_encoded.a;
-
-        vec3 view_normal = normal_flag_encoded.rgb;
-        vec3 world_normal = normalize(mat3(gbufferModelViewInverse) * view_normal);
-
-        for (int i = 0; i < LIGHTING_SAMPLES; i++)
+        if (dot(sample_dir, world_normal) <= 0.0)
         {
-            vec2 rand2d = fract(vec2(hash0, hash1) + WeylNth(i + (frameCounter & 0xF) * LIGHTING_SAMPLES));
-
-            float pdf;
-            vec3 sample_dir = ImportanceSampleGGX(rand2d, world_normal, -world_dir, roughness, pdf);
-            // vec3 sample_dir = normalize(2.0 * dot(-world_dir, H) * H + world_dir);
-
-            if (dot(sample_dir, world_normal) <= 0.0)
-            {
-                sample_dir = reflect(sample_dir, world_normal);
-            }
-
-            vec2 skybox_uv = project_skybox2uv(sample_dir);
-
-            float skybox_lod = pow(roughness, 0.25) * 6.0;
-
-            int skybox_lod0 = int(floor(skybox_lod));
-            int skybox_lod1 = int(ceil(skybox_lod));
-            vec3 skybox_color = mix(
-                sampleLODmanual(colortex3, skybox_uv, skybox_lod0).rgb,
-                sampleLODmanual(colortex3, skybox_uv, skybox_lod1).rgb,
-                fract(skybox_lod));
-
-            image_based_lighting += skybox_color * max(0.0, dot(world_normal, sample_dir));
+            sample_dir = reflect(sample_dir, world_normal);
         }
 
-        image_based_lighting *= 1.0 / (float(LIGHTING_SAMPLES));
+        vec2 skybox_uv = project_skybox2uv(sample_dir);
 
-        vec3 F = getF(metalic, roughness, abs(dot(world_dir, world_normal)), albedo);
-        image_based_lighting *= F;
-        
-        vec3 ao = getAO(iuv, depth, albedo);
+        float skybox_lod = pow(roughness, 0.25) * 6.0;
 
-        color += (albedo) * ((ao * smoothstep(0.1, 1.0, lmcoord.y)) * image_based_lighting);
+        int skybox_lod0 = int(floor(skybox_lod));
+        int skybox_lod1 = int(ceil(skybox_lod));
+        vec3 skybox_color = mix(
+            sampleLODmanual(colortex3, skybox_uv, skybox_lod0).rgb,
+            sampleLODmanual(colortex3, skybox_uv, skybox_lod1).rgb,
+            fract(skybox_lod));
 
-        // --------------------------------------------------------------------
-        //  Block-light
-        // --------------------------------------------------------------------
-
-        color += (albedo / PI) * max(1.0 / (pow2(max(0.95 - lmcoord.x, 0.0) * 6.0) + 1.0) - 0.05, 0.0);
-
-        // --------------------------------------------------------------------
-        //  Directional
-        // --------------------------------------------------------------------
-
-        float shadow_depth;
-
-        vec3 shadow_pos_linear = world2shadowProj(world_pos) * 0.5 + 0.5;
-
-        float shadow = shadowTexSmooth(shadowtex1, shadow_pos_linear, shadow_depth, 0.0);
-
-        if (normal_flag_encoded.a < 0.1)
-        {
-            shadow = min(shadow, screen_space_shadows(view_pos, normalize(shadowLightPosition), fract(hash0 + frameTimeCounter)));
-        }
-        
-        vec3 sun_radiance = shadow * texelFetch(colortex3, ivec2(viewWidth - 1, 0), 0).rgb;
-
-        vec3 view_dir = normalize(view_pos);
-
-        // color += orenNayarDiffuse(shadowLightPosition * 0.01, view_dir, view_normal, roughness, albedo, normal_flag_encoded.a) * sun_radiance;
-        color += brdf_ggx_oren_schlick(albedo, sun_radiance, roughness, metalic, normal_flag_encoded.a, F * albedo, shadowLightPosition * 0.01, view_normal, -view_dir);
-
-        float shadow_depth_diff = max(shadow_pos_linear.z - shadow_depth, 0.0);
-
-        // color = vec3(F);
-
-        // --------------------------------------------------------------------
-        //  Emission
-        // --------------------------------------------------------------------
-
-        if (normal_flag_encoded.a < 0.0)
-        {
-            color = albedo * 2.0;
-        }
-
-        // color = vec3(roughness);
+        image_based_lighting += skybox_color * max(0.0, dot(world_normal, sample_dir));
     }
-    else
+
+    image_based_lighting *= 1.0 / (float(LIGHTING_SAMPLES));
+
+    vec3 F = getF(metalic, roughness, abs(dot(world_dir, world_normal)), albedo);
+    image_based_lighting *= F;
+    
+    vec3 ao = getAO(iuv, depth, albedo);
+
+    color += ((ao * smoothstep(0.1, 1.0, lmcoord.y)) * image_based_lighting);
+
+    // --------------------------------------------------------------------
+    //  Block-light
+    // --------------------------------------------------------------------
+
+    color += (albedo / PI) * max(1.0 / (pow2(max(0.95 - lmcoord.x, 0.0) * 6.0) + 1.0) - 0.05, 0.0);
+
+    // --------------------------------------------------------------------
+    //  Directional
+    // --------------------------------------------------------------------
+
+    float shadow_depth;
+
+    vec3 shadow_pos_linear = world2shadowProj(world_pos) * 0.5 + 0.5;
+
+    float shadow = shadowTexSmooth(shadowtex1, shadow_pos_linear, shadow_depth, 0.0);
+
+    if (normal_flag_encoded.a < 0.1)
     {
-        color += starField(world_dir);
-        color += smoothstep(0.9999, 0.99991, dot(world_sun_dir, world_dir)) * texelFetch(colortex3, ivec2(viewWidth - 1, 0), 0).rgb * 20.0;
+        shadow = min(shadow, screen_space_shadows(view_pos, normalize(shadowLightPosition), fract(hash0 + frameTimeCounter)));
     }
+    
+    vec3 sun_radiance = shadow * texelFetch(colortex3, ivec2(viewWidth - 1, 0), 0).rgb;
+
+    vec3 view_dir = normalize(view_pos);
+
+    // color += orenNayarDiffuse(shadowLightPosition * 0.01, view_dir, view_normal, roughness, albedo, normal_flag_encoded.a) * sun_radiance;
+    color += brdf_ggx_oren_schlick(albedo, sun_radiance, roughness, metalic, normal_flag_encoded.a, F, shadowLightPosition * 0.01, view_normal, -view_dir);
+
+    // color = F;
+
+    float shadow_depth_diff = max(shadow_pos_linear.z - shadow_depth, 0.0);
+
+    // color = vec3(F);
+
+    // --------------------------------------------------------------------
+    //  Emission
+    // --------------------------------------------------------------------
+
+    if (normal_flag_encoded.a < 0.0)
+    {
+        color = albedo * 2.0;
+    }
+
+    // color = vec3(roughness);
+#else
+    color += starField(world_dir);
+    color += smoothstep(0.9999, 0.99991, dot(world_sun_dir, world_dir)) * texelFetch(colortex3, ivec2(viewWidth - 1, 0), 0).rgb * 20.0;
+#endif
 
     float l_limit = Ra;
 
@@ -412,6 +407,8 @@ vec3 compute_lighting(ivec2 iuv, float depth)
 
 void main()
 {
+#if GROUP == 0
+
     ivec2 iuv00 = ivec2(gl_GlobalInvocationID.xy) * 2;
     float depth00 = texelFetch(depthtex0, iuv00, 0).r;
 
@@ -424,20 +421,26 @@ void main()
     ivec2 iuv11 = ivec2(gl_GlobalInvocationID.xy * 2 + ivec2(1, 1));
     float depth11 = texelFetch(depthtex0, iuv11, 0).r;
 
-    vec3 color = compute_lighting(iuv00, depth00);
+    bool has_sky = (depth00 >= 1.0 || depth01 >= 1.0 || depth10 >= 1.0 || depth11 >= 1.0);
 
-    imageStore(colorimg2, iuv00, vec4(color, 0.0));
+    if (has_sky)
+    {
+        vec3 color = compute_lighting(iuv00, 1.0);
 
-    if (depth00 < 1.0 || depth01 < 1.0 || depth10 < 1.0 || depth11 < 1.0)
-    {
-        imageStore(colorimg2, iuv01, vec4(compute_lighting(iuv01, depth01), 0.0));
-        imageStore(colorimg2, iuv10, vec4(compute_lighting(iuv10, depth10), 0.0));
-        imageStore(colorimg2, iuv11, vec4(compute_lighting(iuv11, depth11), 0.0));
+        if (depth00 >= 1.0) imageStore(colorimg2, iuv00, vec4(color, 0.0));
+        if (depth01 >= 1.0) imageStore(colorimg2, iuv01, vec4(color, 0.0));
+        if (depth10 >= 1.0) imageStore(colorimg2, iuv10, vec4(color, 0.0));
+        if (depth11 >= 1.0) imageStore(colorimg2, iuv11, vec4(color, 0.0));
     }
-    else
-    {
-        imageStore(colorimg2, iuv01, vec4(color, 0.0));
-        imageStore(colorimg2, iuv10, vec4(color, 0.0));
-        imageStore(colorimg2, iuv11, vec4(color, 0.0));
-    }
+
+#else
+
+    ivec2 iuv = ivec2(gl_GlobalInvocationID.xy);
+
+    float depth = texelFetch(depthtex0, iuv, 0).r;
+
+    if (depth < 1.0) imageStore(colorimg2, iuv, vec4(compute_lighting(iuv, depth), 0.0));
+
+#endif
+
 }

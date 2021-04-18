@@ -11,6 +11,7 @@ uniform vec3 shadowLightPosition;
 uniform vec3 upPosition;
 
 attribute vec4 mc_Entity;
+attribute vec3 at_midBlock;
 
 uniform mat4 gbufferProjection;
 
@@ -58,6 +59,14 @@ bool intersect(vec3 orig, vec3 D) {
     return true;
 }
 
+uniform mat4 shadowModelViewInverse;
+
+uniform vec3 cameraPosition;
+
+#include "/libs/voxelize.glslinc"
+
+layout (r32ui) uniform uimage2D shadowcolorimg0;
+
 void main() {
     vec4 input_pos = gl_Vertex;
 
@@ -65,6 +74,33 @@ void main() {
     color = vec4(gl_Color);
 
     vec4 shadow_view_pos = gl_ModelViewMatrix * input_pos;
+
+    if (mc_Entity.x != 0 && gl_VertexID % 4 == 0)
+    {
+        vec4 world_pos = shadowModelViewInverse * shadow_view_pos;
+
+        vec3 world_pos_center = world_pos.xyz + at_midBlock * (1.0 / 64.0);
+
+        int voffset = 0;
+        int vheight = shadowMapResolution;
+
+        ivec3 volume_pos = getVolumePos(world_pos_center, cameraPosition, 0);
+        ivec2 planar_pos = volume2planar(volume_pos, 0);
+        imageStore(shadowcolorimg0, planar_pos, uvec4(mc_Entity.x >= 9200 ? 2 : 1, 0, 0, 0));        
+
+        for (int i = 1; i < 9; i++)
+        {
+            vheight = vheight >> 1;
+            voffset += vheight;
+
+            ivec3 volume_pos = getVolumePos(world_pos_center, cameraPosition, i);
+    
+            ivec2 planar_pos = volume2planar(volume_pos, i);
+            imageStore(shadowcolorimg0, planar_pos + ivec2(0, voffset), uvec4(1));
+
+            // if (mc_Entity.x >= 9230) imageAtomicAdd(shadowcolorimg0, planar_pos + ivec2(shadowMapResolution / 2, voffset), 1);
+        }
+    }
 
     gl_Position = gl_ProjectionMatrix * shadow_view_pos;
 
@@ -84,7 +120,10 @@ uniform sampler2D tex;
 void main() {
     ivec2 iuv = ivec2(gl_FragCoord.st);
 
-    gl_FragData[0] = color * texture(tex, uv);
+    //gl_FragData[0] = color * texture(tex, uv);
+    vec4 compColor = color * texture(tex, uv);
+
+    if (compColor.a < 0.1) discard;
 }
 
 #endif

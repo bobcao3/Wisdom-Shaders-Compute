@@ -1,5 +1,7 @@
 #version 450 compatibility
 
+#include "/libs/compat.glsl"
+
 /*
 
 const int colortex0Format = R16F; // AO
@@ -14,17 +16,19 @@ const int colortex7Format = RGBA8_SNORM; // Normals
 const int colortex8Format = RGBA8; // Specular
 
 const int colortex9Format = R16F; // AO temporal
-const int colortex10Format = R11F_G11F_B10F; // Color temporal
+const int colortex10Format = RGBA32F; // Color temporal (R11F_G11F_B10F for gameplay)
 const int colortex11Format = RGBA16F; // Color temporal
 const int colortex12Format = R11F_G11F_B10F; // SSPT temporal
 
-const int shadowcolor0Format = RGBA8;
+const int shadowcolor0Format = R32UI;
 const int shadowcolor1Format = RG32F;
 
 const bool colortex3Clear = false;
 const bool colortex9Clear = false;
 const bool colortex10Clear = false;
 const bool colortex12Clear = false;
+
+const vec4 shadowcolor0ClearColor = vec4(0.0);
 
 */
 
@@ -46,7 +50,7 @@ uniform sampler2D colortex11;
 uniform sampler2D colortex15;
 
 uniform sampler2D shadowtex1;
-uniform sampler2D shadowcolor0;
+uniform usampler2D shadowcolor0;
 uniform sampler2D shadowcolor1;
 
 uniform vec2 invWidthHeight;
@@ -94,8 +98,8 @@ void main()
     color = applyLUT(color);
 #endif
 
-    // if (iuv.x < 512 && iuv.y < 512)
-    //     color = texelFetch(colortex15, iuv, 0).rgb;
+    // if (iuv.x < 2048 && iuv.y < 2048)
+    //     color = vec3(float(texelFetch(shadowcolor0, iuv + ivec2(0, shadowMapResolution / 2), 0).r & 0xFFFFF) / 256.0);
 
     gl_FragColor = vec4(color, 1.0);
 }

@@ -25,7 +25,11 @@ const vec3 I0 = vec3(30.0);
 
 #define CLOUD_STEPS 6 // [2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32]
 
+#ifdef LINEAR_ATMOS
+const int steps = 4;
+#else
 const int steps = 10;
+#endif
 const int stepss = 20;
 
 vec3 I = I0; // * (1.0 - cloud_coverage * 0.7);
@@ -179,13 +183,23 @@ vec4 scatter(vec3 o, vec3 d, vec3 Ds, float lmax, float nseed, bool cloud) {
 	vec3 R = vec3(0.0), M = vec3(0.0), Mc = vec3(0.0);
 	vec3 R_moon = vec3(0.0), M_moon = vec3(0.0), Mc_moon = vec3(0.0);
 
+#ifndef LINEAR_ATMOS
 	float u0 = - (L - 1.0) / (1.0 - exp2(steps + 1));
+#else
+	float dl = L / float(steps + 1);
+#endif
+
 	float total = 0.0;
 	for (int i = 0; i < steps; ++i) {
+
+#ifndef LINEAR_ATMOS
 		float dl, l;
 
 		dl = u0 * exp2(i + nseed);
 		l = -u0 * (1.0 - exp2(i + nseed + 1));
+#else
+		float l = float(i + nseed) * dl;
+#endif
 
 		vec3 p = o + d * l;
 

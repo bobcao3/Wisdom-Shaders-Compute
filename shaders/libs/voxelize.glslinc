@@ -1,0 +1,51 @@
+#define volume_width 128 // [64 128 192 256]
+#define volume_height 128 // [64 128 192 256]
+
+#include "/configs.glsl"
+
+// const int shadowMapResolution = 1024; // [512 1024 2048 4096]
+
+const int volume_depth_grid_width = (shadowMapResolution / volume_width);
+const int volume_depth_grid_height = (shadowMapResolution / volume_height / 2);
+
+const int volume_depth = (shadowMapResolution / volume_width) * (shadowMapResolution / volume_height) / 2;
+
+ivec3 getVolumePos(vec3 world_pos, vec3 world_camera_pos, int lod)
+{
+    int stride = 1 << lod;
+    return ivec3(floor(world_pos + mod(world_camera_pos, 1.0))) + ivec3(volume_width, volume_depth, volume_height) / 2;
+}
+
+ivec2 volume2planar(ivec3 pos, int lod)
+{
+    int stride = 1 << lod;
+
+    if (pos.x < 0 || pos.x >= volume_width || pos.y < 0 || pos.y >= volume_depth || pos.z < 0 || pos.z >= volume_height) return ivec2(-1);
+
+    // pos /= stride;
+    pos = pos >> lod;
+
+    ivec2 base = ivec2((pos.y % (volume_depth_grid_width)) * volume_width / stride, (pos.y / (volume_depth_grid_width)) * volume_height / stride);
+    ivec2 uv = base + pos.xz;
+
+    return uv;
+}
+
+vec2 volume2planarUV(vec3 pos)
+{
+    if (pos.x < 0 || pos.x >= volume_width || pos.y < 0 || pos.y >= volume_depth || pos.z < 0 || pos.z >= volume_height) return ivec2(-1);
+
+    ivec2 base = ivec2((int(pos.y) % volume_depth_grid_width) * volume_width, (int(pos.y) / volume_depth_grid_width) * volume_height);
+    vec2 uv = vec2(base) + pos.xz;
+
+    return uv;
+}
+
+ivec3 planar2volume(ivec2 uv)
+{
+    ivec2 y_grid = uv / ivec2(volume_width, volume_height);
+    ivec2 xz_pos = uv % ivec2(volume_width, volume_height);
+    ivec3 wpos = ivec3(xz_pos.x, y_grid.x + y_grid.y * volume_depth_grid_width, xz_pos.y);
+
+    return wpos;
+}

@@ -37,6 +37,16 @@
 
 #endif
 
+float L1dist(vec2 v)
+{
+    return max(abs(v.x), abs(v.y));
+}
+
+float L2dist2(vec2 v)
+{
+    return dot(v, v);
+}
+
 float pow1d5(float c)
 {
 	return c * sqrt(c);
