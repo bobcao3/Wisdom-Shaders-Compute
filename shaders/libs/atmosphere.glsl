@@ -28,7 +28,7 @@ const vec3 I0 = vec3(30.0);
 #ifdef LINEAR_ATMOS
 const int steps = 4;
 #else
-const int steps = 10;
+const int steps = 16;
 #endif
 const int stepss = 20;
 

@@ -152,6 +152,10 @@ vec3 orenNayarDiffuse(vec3 lightDirection, vec3 viewDirection, vec3 surfaceNorma
 
 #define SSPT
 
+uniform usampler2D shadowcolor0;
+
+#include "/libs/voxel_lighting.glsl"
+
 void main()
 {
     ivec2 iuv = ivec2(gl_GlobalInvocationID.xy) * 2;
@@ -223,6 +227,10 @@ void main()
         }
 
         color *= (1.0 / float(SSPT_RAYS));
+
+        vec3 world_normal = mat3(gbufferModelViewInverse) * vec3(view_normal);
+
+        // color += getVoxelLighting(world_normal, world_pos, iuv_orig);
 
         imageStore(colorimg5, iuv_orig, vec4(color, 1.0));
     }

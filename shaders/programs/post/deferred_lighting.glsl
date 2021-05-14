@@ -11,7 +11,7 @@ uniform sampler2D colortex7;
 uniform sampler2D colortex8;
 uniform sampler2D colortex15;
 
-layout (r11f_g11f_b10f) uniform image2D colorimg2;
+layout (r11f_g11f_b10f) uniform image2D colorimg5;
 
 #include "/libs/transform.glsl"
 #include "/libs/noise.glsl"
@@ -275,8 +275,10 @@ vec3 compute_lighting(ivec2 iuv, float depth)
     vec3 world_pos = view2world(view_pos);
     vec3 world_dir = normalize(world_pos);
 
-    float hash0 = texelFetch(colortex15, ivec2(iuv.x & 0xFF, iuv.y & 0x7F), 0).r;    
-    float hash1 = texelFetch(colortex15, ivec2(iuv.x & 0xFF, (iuv.y & 0x7F) + 0x80), 0).r;    
+    float hash0 = texelFetch(colortex15, ivec2(iuv.x & 0xFF, iuv.y & 0x7F), 0).r;
+    float hash1 = texelFetch(colortex15, ivec2(iuv.x & 0xFF, (iuv.y & 0x7F) + 0x80), 0).r;
+
+    float atmos_hash = fract(hash0 + WeylNth(frameCounter & 0xF).x);
     
     vec3 color = vec3(0.0);
 
@@ -395,12 +397,19 @@ vec3 compute_lighting(ivec2 iuv, float depth)
     //     l_limit = min(l_limit, (cameraPosition.y + 1.0) / abs(world_dir.y));
     // }
 
-    if (depth < 1.0) l_limit = length(world_pos);
+    if (depth < 1.0)
+    {
+        l_limit = length(world_pos);
+    }
+    else
+    {
+        atmos_hash = 0.5;
+    }
 
-    vec4 skybox_color = scatter(vec3(0.0, cameraPosition.y, 0.0), world_dir, world_sun_dir, l_limit, hash0, depth >= 1.0);
+    vec4 skybox_color = scatter(vec3(0.0, cameraPosition.y, 0.0), world_dir, world_sun_dir, l_limit, atmos_hash, depth >= 1.0);
     color = color * skybox_color.a + skybox_color.rgb;
 
-    // color = vec3(skybox_color.a);
+    // color = vec3(skybox_color.rgb);
 
     return color;
 }
@@ -427,10 +436,10 @@ void main()
     {
         vec3 color = compute_lighting(iuv00, 1.0);
 
-        if (depth00 >= 1.0) imageStore(colorimg2, iuv00, vec4(color, 0.0));
-        if (depth01 >= 1.0) imageStore(colorimg2, iuv01, vec4(color, 0.0));
-        if (depth10 >= 1.0) imageStore(colorimg2, iuv10, vec4(color, 0.0));
-        if (depth11 >= 1.0) imageStore(colorimg2, iuv11, vec4(color, 0.0));
+        if (depth00 >= 1.0) imageStore(colorimg5, iuv00, vec4(color, 0.0));
+        if (depth01 >= 1.0) imageStore(colorimg5, iuv01, vec4(color, 0.0));
+        if (depth10 >= 1.0) imageStore(colorimg5, iuv10, vec4(color, 0.0));
+        if (depth11 >= 1.0) imageStore(colorimg5, iuv11, vec4(color, 0.0));
     }
 
 #else
@@ -439,7 +448,7 @@ void main()
 
     float depth = texelFetch(depthtex0, iuv, 0).r;
 
-    if (depth < 1.0) imageStore(colorimg2, iuv, vec4(compute_lighting(iuv, depth), 0.0));
+    if (depth < 1.0) imageStore(colorimg5, iuv, vec4(compute_lighting(iuv, depth), 0.0));
 
 #endif
 

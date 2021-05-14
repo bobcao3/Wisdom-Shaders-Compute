@@ -11,6 +11,7 @@ uniform vec3 shadowLightPosition;
 uniform vec3 upPosition;
 
 attribute vec4 mc_Entity;
+attribute vec4 mc_midTexCoord;
 attribute vec3 at_midBlock;
 
 uniform mat4 gbufferProjection;
@@ -67,6 +68,12 @@ uniform vec3 cameraPosition;
 
 layout (r32ui) uniform uimage2D shadowcolorimg0;
 
+// #define DIRECT_VOXEL_LIGHTING
+
+#define DIRECT_LIGHTING_RADIUS 32
+
+uniform sampler2D tex;
+
 void main() {
     vec4 input_pos = gl_Vertex;
 
@@ -86,7 +93,12 @@ void main() {
 
         ivec3 volume_pos = getVolumePos(world_pos_center, cameraPosition, 0);
         ivec2 planar_pos = volume2planar(volume_pos, 0);
-        imageStore(shadowcolorimg0, planar_pos, uvec4(mc_Entity.x >= 9200 ? 2 : 1, 0, 0, 0));        
+
+        vec3 tileColor = texture(tex, mc_midTexCoord.st).rgb;
+
+        imageStore(shadowcolorimg0, planar_pos, uvec4(packUnorm4x8(vec4(tileColor, float(mc_Entity.x >= 9200))), 0, 0, 0));
+
+        int largest_offset = int(max(abs(world_pos_center.x), max(abs(world_pos_center.y), abs(world_pos_center.z))));
 
         for (int i = 1; i < 9; i++)
         {
@@ -96,9 +108,11 @@ void main() {
             ivec3 volume_pos = getVolumePos(world_pos_center, cameraPosition, i);
     
             ivec2 planar_pos = volume2planar(volume_pos, i);
-            imageStore(shadowcolorimg0, planar_pos + ivec2(0, voffset), uvec4(1));
+            //imageStore(shadowcolorimg0, planar_pos + ivec2(0, voffset), uvec4(1));
 
-            // if (mc_Entity.x >= 9230) imageAtomicAdd(shadowcolorimg0, planar_pos + ivec2(shadowMapResolution / 2, voffset), 1);
+            #ifdef DIRECT_VOXEL_LIGHTING
+            if (mc_Entity.x >= 9200 && largest_offset < DIRECT_LIGHTING_RADIUS) imageAtomicAdd(shadowcolorimg0, planar_pos + ivec2(shadowMapResolution / 2, voffset), 1);
+            #endif
         }
     }
 

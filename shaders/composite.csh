@@ -12,7 +12,7 @@ uniform float aspectRatio;
 uniform vec2 invWidthHeight;
 
 uniform sampler2D colortex0;
-uniform sampler2D colortex2;
+uniform sampler2D colortex5;
 uniform sampler2D colortex3;
 uniform sampler2D colortex4;
 uniform sampler2D colortex6;
@@ -128,6 +128,8 @@ vec3 orenNayarDiffuse(vec3 lightDirection, vec3 viewDirection, vec3 surfaceNorma
     return albedo * max(vec3(subsurface), NdotL * (A + B * s / t)) / PI;
 }
 
+uniform sampler2D depthtex1;
+
 void main()
 {
     ivec2 iuv = ivec2(gl_GlobalInvocationID.xy);
@@ -147,9 +149,13 @@ void main()
         float hash1d = texelFetch(colortex15, (iuv + ivec2(WeylNth(frameCounter & 0xFFFF) * 256)) & 0xFF, 0).r;
         int rand1d = (frameCounter & 0xFFFF) + int(bayer16(vec2(iuv)) * 256.0);
         
-        vec3 color = texelFetch(colortex2, iuv, 0).rgb;
+        vec3 color = texelFetch(colortex5, iuv, 0).rgb;
 
         vec3 world_sun_dir = mat3(gbufferModelViewInverse) * (sunPosition * 0.01);
+
+        float depth1 = texelFetch(depthtex1, iuv, 0).r;
+
+        float depth_diff = abs(linearizeDepth(depth1) - linearizeDepth(depth)) * far * 0.5;
 
         float weight = 1.0;
         for (int i = 0; i < 16; i++)
@@ -160,13 +166,17 @@ void main()
             offset.x *= 2.0 * PI;
             offset = vec2(cos(offset.x), sin(offset.x)) * offset.y;
 
-            color.rgb += texture(colortex2, uv + 0.03 * offset * clamp(transparent.a * 0.3, 0.0, 1.0)).rgb * weight_s;
+            color.rgb += texture(colortex5, uv + 0.03 * offset * clamp(transparent.a * 0.3 * depth_diff, 0.0, 1.0)).rgb * weight_s;
             weight += weight_s;
         }
         color.rgb /= weight;
 
         color.rgb *= transparent.rgb / transparent.a * 0.8 + 0.2;
 
-        imageStore(colorimg2, iuv, vec4(color, 0.0));
+        imageStore(colorimg2, iuv, vec4(color, 1.0));
+    }
+    else
+    {
+        imageStore(colorimg2, iuv, vec4(texelFetch(colortex5, iuv, 0).rgb, 1.0));
     }
 }
