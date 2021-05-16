@@ -67,6 +67,7 @@ void main()
 
         if (squared)
         {
+            color = vec3(dot(color, vec3(0.2126, 0.7152, 0.0722)));
             color *= color;
             history_uv.x += 1.0;
         }
@@ -81,13 +82,13 @@ void main()
 
         if (squared)
         {
-            float x2 = dot(color, vec3(1.0)); // Not correct luma but whatever
+            float x2 = color.r; // Not correct luma but whatever
             vec3 color_temporal = mix(
                 texture(colortex12, (history_uv - vec2(1.0, 0.0)) / 2).rgb,
                 curr_color,
                 0.1
             );
-            float x = dot(color_temporal, vec3(1.0));
+            float x = dot(color_temporal, vec3(0.2126, 0.7152, 0.0722));
 
             color = vec3(abs(x2 - x * x));
         }

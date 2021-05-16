@@ -135,4 +135,37 @@ const vec2 poisson_4[4] = vec2 [] (
 	vec2( 0.34495938,  0.29387760 )
 );
 
+// Decent uniform RNG
+// https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-37-efficient-random-number-generation-and-application
+uint z1, z2, z3, z4;
+
+// S1, S2, S3, and M are all constants, and z is part of the
+// private per-thread generator state.
+uint TausStep(uint z, uint S1, uint S2, uint S3, uint M) {
+    uint b = (((z << S1) ^ z) >> S2);
+    z = (((z & M) << S3) ^ b);
+    return z;
+}
+
+// A and C are constants
+uint LCGStep(uint z, uint A, uint C) {
+    z = (A * z + C);
+    return z;
+}
+
+float getRand() {
+    // Combined period is lcm(p1,p2,p3,p4)~ 2^121
+    z1 = TausStep(z1, 13, 19, 12, 4294967294); // p1=2^31-1
+    z2 = TausStep(z2, 2, 25, 4, 4294967288);   // p2=2^30-1
+    z3 = TausStep(z3, 3, 11, 17, 4294967280);  // p3=2^28-1
+    z4 = LCGStep(z4, 1664525, 1013904223);     // p4=2^32
+    return 2.3283064365387e-10 * float(z1 ^ z2 ^ z3 ^ z4);
+}
+
+bool coin_toss()
+{
+    z4 = (1103515245 * z4 + 12345) & 0x7FFFFFFF;
+    return z4 >= 0x40000000;
+}
+
 #endif

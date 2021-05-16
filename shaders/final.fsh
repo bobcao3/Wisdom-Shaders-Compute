@@ -90,16 +90,16 @@ void main()
  
     // color = texelFetch(colortex11, iuv, 0).rgb;
 
-    // color = luma(color) * pow(color / luma(color), vec3(1.2));
+    color = luma(color) * pow(color / luma(color), vec3(1.5));
 
-    color = ACESFitted(toGamma(color)) * 1.1;
+    color = ACESFitted(toGamma(color)) * 1.2;
 
 #ifdef APPLY_LUT
     color = applyLUT(color);
 #endif
 
-    // if (iuv.x < 2048 && iuv.y < 2048)
-    //     color = vec3(texelFetch(shadowcolor1, iuv, 0).rgb);
+    // if (iuv.x < 1024 && iuv.y < 1024)
+    //     color = vec3(texelFetch(shadowcolor1, iuv * 2, 0).rgb);
 
     gl_FragColor = vec4(color, 1.0);
 }

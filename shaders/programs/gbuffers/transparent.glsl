@@ -81,7 +81,7 @@ void main()
     gl_FragData[0] = albedo; // Albedo
     gl_FragData[1] = albedo; // Depth, Flag, Normal
     gl_FragData[2] = vec4(normal, flag); // Depth, Flag, Normal
-    gl_FragData[3] = vec4(lmcoord, 0.999, 0.0); // F0, Smoothness
+    gl_FragData[3] = vec4(lmcoord, 1.0, 0.0); // F0, Smoothness
 }
 
 #endif
@@ -95,6 +95,8 @@ uniform vec2 taaOffset;
 attribute vec2 mc_Entity;
 attribute vec4 mc_midTexCoord;
 
+uniform mat4 gbufferModelViewInverse;
+
 void main()
 {
     view_pos = gl_ModelViewMatrix * gl_Vertex;
@@ -103,7 +105,7 @@ void main()
     
     color = gl_Color;
     // normal_enc = normalEncode(normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz));
-    normal = normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz);
+    normal = mat3(gbufferModelViewInverse) * normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz);
 
     uv = (gl_TextureMatrix[0] * gl_MultiTexCoord0).st;
 

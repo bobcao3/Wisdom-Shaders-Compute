@@ -29,6 +29,8 @@ void main()
 
 uniform vec2 taaOffset;
 
+uniform mat4 gbufferModelViewInverse;
+
 void main()
 {
     vec4 view_pos = gl_ModelViewMatrix * gl_Vertex;
@@ -38,7 +40,7 @@ void main()
     
     color = gl_Color;
     // normal_enc = normalEncode(normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz));
-    normal = normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz);
+    normal = mat3(gbufferModelViewInverse) * normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz);
 
     gl_Position.st += taaOffset * gl_Position.w;
 }

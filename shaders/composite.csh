@@ -29,106 +29,9 @@ layout (r11f_g11f_b10f) uniform image2D colorimg2;
 
 #include "/configs.glsl"
 
-uniform sampler2D shadowtex1;
-
-vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness)
-{
-    float a = roughness;
-	
-    float phi = 2.0 * PI * Xi.x;
-    float cosTheta = sqrt((1.0 - Xi.y) / (1.0 + (a*a - 1.0) * Xi.y));
-    float sinTheta = sqrt(1.0 - cosTheta*cosTheta);
-	
-    // from spherical coordinates to cartesian coordinates
-    vec3 H;
-    H.x = cos(phi) * sinTheta;
-    H.y = sin(phi) * sinTheta;
-    H.z = cosTheta;
-	
-    // from tangent-space vector to world-space sample vector
-    vec3 up        = abs(N.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
-    vec3 tangent   = normalize(cross(up, N));
-    vec3 bitangent = cross(N, tangent);
-	
-    vec3 sampleVec = tangent * H.x + bitangent * H.y + N * H.z;
-    return normalize(sampleVec);
-}
-
-vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
-    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow5(max(1.0 - cosTheta, 0.001));
-}
-
-bool match(float a, float b)
-{
-	return (a > b - 0.002 && a < b + 0.002);
-}
-
-vec3 getF(float metalic, float roughness, float cosTheta)
-{
-	if (metalic < (229.5 / 255.0))
-    {
-        float metalic_generated = 1.0 - metalic * (229.0 / 255.0);
-        metalic_generated = pow(metalic_generated, 2.0);
-		return fresnelSchlickRoughness(cosTheta, vec3(metalic_generated), roughness);
-    }
-
-	#include "/programs/post/materials.glsl"
-
-	cosTheta = max(0.01, abs(cosTheta));
-
-	vec3 NcosTheta = 2.0 * N * cosTheta;
-	float cosTheta2 = cosTheta * cosTheta;
-	vec3 N2K2 = N * N + K * K;
-
-	vec3 Rs = (N2K2 - NcosTheta + cosTheta2) / (N2K2 + NcosTheta + cosTheta2);
-	vec3 Rp = (N2K2 * cosTheta2 - NcosTheta + 1.0) / (N2K2 * cosTheta2 + NcosTheta + 1.0);
-
-	return (Rs + Rp) * 0.5;
-}
-
-uniform sampler2D shadowcolor1;
-
-float VSM(float t, vec2 uv)
-{
-    vec2 means = texture(shadowcolor1, uv).rg;
-    float e_x = means.x;
-    float var = means.y - e_x * e_x;
-
-    float p_max = (var + 1e-7) / (var + pow2(max(0.0, t - e_x)) + 1e-7);
-
-    const float c = 500;
-
-    float depth_test_exp = clamp(exp(-c * (t - e_x)), 0.0, 1.0);
-
-    return min(p_max, depth_test_exp);
-}
-
-float shadowTexSmooth(in sampler2D tex, in vec3 spos, out float depth, float bias) {
-    if (clamp(spos, vec3(0.0), vec3(1.0)) != spos) return 1.0;
-
-    return VSM(spos.z, spos.xy);
-}
-
-#define VL
-
-#include "/libs/atmosphere.glsl"
-
-vec3 orenNayarDiffuse(vec3 lightDirection, vec3 viewDirection, vec3 surfaceNormal, float roughness, vec3 albedo, float subsurface) {  
-    float LdotV = dot(lightDirection, viewDirection);
-    float NdotL = dot(lightDirection, surfaceNormal);
-    float NdotV = dot(surfaceNormal, viewDirection);
-
-    float s = LdotV - NdotL * NdotV;
-    float t = mix(1.0, max(NdotL, NdotV), step(0.0, s));
-
-    float sigma2 = roughness * roughness;
-    vec3 A = 1.0 + sigma2 * (albedo / (sigma2 + 0.13) + 0.5 / (sigma2 + 0.33));
-    float B = 0.45 * sigma2 / (sigma2 + 0.09);
-
-    return albedo * max(vec3(subsurface), NdotL * (A + B * s / t)) / PI;
-}
-
 uniform sampler2D depthtex1;
+
+uniform vec3 sunPosition;
 
 void main()
 {
@@ -172,6 +75,11 @@ void main()
         color.rgb /= weight;
 
         color.rgb *= transparent.rgb / transparent.a * 0.8 + 0.2;
+
+        vec3 world_normal = texelFetch(colortex7, iuv, 0).rgb;
+        vec3 view_normal = normalize(mat3(gbufferModelView) * world_normal);
+
+        color.rgb *= 1.0 - pow(1.0 - abs(dot(normalize(view_pos), view_normal)), 3.0);
 
         imageStore(colorimg2, iuv, vec4(color, 1.0));
     }

@@ -29,7 +29,7 @@ shared bool lds_valid[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
 
 void load(ivec2 local_xy, ivec2 iuv)
 {
-    ivec2 sample_uv = iuv;// clamp(iuv, ivec2(0), ivec2(floor(viewWidth * 0.5) - 1, floor(viewHeight * 0.5) - 1));
+    ivec2 sample_uv = clamp(iuv, ivec2(0), ivec2(floor(viewWidth * 0.5) - 1, floor(viewHeight * 0.5) - 1));
 
     vec3 sample_normal = texelFetch(colortex7, sample_uv * 2, 0).rgb;
     vec3 sample_color = imageLoad(colorimg5, sample_uv).rgb;
@@ -85,6 +85,8 @@ void main()
 
     float center_var = lds_variance[getIndex(local_id)];
 
+    float center_luma = dot(center_color, vec3(0.2126, 0.7152, 0.0722));
+
     // Filter
     for (int i = -2; i <= 2; i++)
     {
@@ -92,16 +94,15 @@ void main()
         {
             ivec2 offset = ivec2(i, j);
 
-            //ivec2 sample_uv = clamp(iuv + offset, ivec2(0), ivec2(floor(viewWidth * 0.5) - 1, floor(viewHeight * 0.5) - 1));
             vec3 sample_normal = lds_normals[getIndex(local_id + offset)];
             vec3 sample_color = lds_colors[getIndex(local_id + offset)];
-            vec3 color_diff = sample_color - center_color;
+            float color_diff = abs(dot(sample_color, vec3(0.2126, 0.7152, 0.0722)) - center_luma);
             float sample_var = lds_variance[getIndex(local_id + offset)];
             float var_diff = abs(center_var - sample_var);
 
             float sample_weight = gaussian[i + 2] * gaussian[j + 2];
             sample_weight *= pow(abs(dot(normal, sample_normal)), 32.0);
-            sample_weight *= exp(-dot(color_diff, vec3(1.0)) / (sqrt(var_diff + 0.001)));
+            sample_weight *= exp(-color_diff / (sqrt(var_diff + 0.001)));
 
             if (isnan(sample_color.r) || !lds_valid[getIndex(local_id + offset)]) continue;
 

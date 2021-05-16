@@ -74,7 +74,7 @@ void densities(in vec3 pos, out vec2 des) {
 
 	des.y = exp(-h/Hm) * (1.0 + rainStrength2 * 3.0);
 
-	des.y += clamp(exp(-(h - 2000.0) / 1000.0), 0.0, 5.0) * (0.5 + rainStrength2 * 5.0);
+	des.y += clamp(exp(-(h - 1000.0) / 500.0), 0.0, 5.0) * (0.5 + rainStrength2 * 5.0);
 	// des.y += clamp(exp(-(h - 200.0) / 200.0), 0.0, 5.0) * 6.0;
 }
 
@@ -213,7 +213,7 @@ vec4 scatter(vec3 o, vec3 d, vec3 Ds, float lmax, float nseed, bool cloud) {
 
         vec3 shadow_pos_linear = world2shadowProj(d * l) * 0.5 + 0.5;
 
-        float shadow = shadowTexSmooth(shadowtex1, shadow_pos_linear, shadow_depth, 0.0);
+        float shadow = shadowTexSmooth(shadow_pos_linear, shadow_depth, 0.0);
 
 		vec3 Ri, Mi;
 		inScatter(p, Ds, Ra, depth, des, nseed, Ri, Mi); R += Ri * shadow; M += Mi * shadow;
