@@ -57,7 +57,7 @@ void main()
         int stride = 1 << lod;
         int substride = 1 << (lod - 1);
 
-        memoryBarrierShared();
+        barrier();
 
         if (gl_LocalInvocationID.x % stride != 0 || gl_LocalInvocationID.y % stride != 0) return;
 

@@ -99,7 +99,7 @@ void main()
 #endif
 
     // if (iuv.x < 2048 && iuv.y < 2048)
-    //     color = vec3(float(texelFetch(shadowcolor0, iuv + ivec2(0, shadowMapResolution / 2), 0).r & 0xFFFFF) / 256.0);
+    //     color = vec3(texelFetch(shadowcolor1, iuv, 0).rgb);
 
     gl_FragColor = vec4(color, 1.0);
 }

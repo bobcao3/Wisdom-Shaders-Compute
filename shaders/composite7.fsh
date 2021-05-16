@@ -127,7 +127,7 @@ vec3 orenNayarDiffuse(vec3 lightDirection, vec3 viewDirection, vec3 surfaceNorma
     return albedo * max(vec3(subsurface), NdotL * (A + B * s / t)) / PI;
 }
 
-/* RENDERTARGETS: 2,12 */
+/* RENDERTARGETS: 2 */
 
 float gaussian[] = float[] (
     0.06136, 0.24477, 0.38774, 0.24477, 0.06136
@@ -171,15 +171,6 @@ void main()
         }
 
         indirect /= weight;
-
-        vec2 history_uv = uv + texelFetch(colortex1, iuv, 0).rg;
-        vec3 history = texture(colortex12, history_uv).rgb;
-
-        if (isnan(history.x)) history = vec3(0.0);
-
-        indirect = mix(history, indirect, 0.1);
-
-        temporal = indirect;
 
         color += indirect * albedo;
 
@@ -372,5 +363,4 @@ void main()
     }
 
     gl_FragData[0] = vec4(color, 1.0);
-    gl_FragData[1] = vec4(temporal, 1.0);
 }

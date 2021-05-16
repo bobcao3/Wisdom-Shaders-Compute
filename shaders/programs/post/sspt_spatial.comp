@@ -17,42 +17,101 @@ float gaussian[] = float[] (
 uniform float viewWidth;
 uniform float viewHeight;
 
+int getIndex(ivec2 uv)
+{
+    return uv.y * int(gl_WorkGroupSize.x + 4) + uv.x;
+}
+
+shared lowp vec3 lds_normals[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
+shared lowp vec3 lds_colors[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
+shared float lds_variance[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
+shared bool lds_valid[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
+
+void load(ivec2 local_xy, ivec2 iuv)
+{
+    ivec2 sample_uv = iuv;// clamp(iuv, ivec2(0), ivec2(floor(viewWidth * 0.5) - 1, floor(viewHeight * 0.5) - 1));
+
+    vec3 sample_normal = texelFetch(colortex7, sample_uv * 2, 0).rgb;
+    vec3 sample_color = imageLoad(colorimg5, sample_uv).rgb;
+    float sample_variance = imageLoad(colorimg5, sample_uv + ivec2(viewWidth * 0.5, 0.0)).r;
+
+    lds_colors[getIndex(local_xy + 2)] = sample_color;
+    lds_normals[getIndex(local_xy + 2)] = sample_normal;
+    lds_variance[getIndex(local_xy + 2)] = sample_variance;
+
+    float depth = texelFetch(colortex4, sample_uv, 0).r;
+    lds_valid[getIndex(local_xy + 2)] = depth < 1.0;
+}
+
 void main()
 {
-    ivec2 iuv = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 group_base = ivec2((gl_WorkGroupSize.xy * STRIDE) * (gl_WorkGroupID.xy / STRIDE) + (gl_WorkGroupID.xy % STRIDE));
+    ivec2 iuv = group_base + ivec2(gl_LocalInvocationID.xy * STRIDE);
+    ivec2 local_id = ivec2(gl_LocalInvocationID.xy) + 2;
 
-    float depth = texelFetch(colortex4, iuv, 0).r;
+    // Load the padding
+    {
+        int index = int(gl_LocalInvocationIndex);
+        const int padded_width = int(gl_WorkGroupSize.x + 4);
+        const int local_size = int(gl_WorkGroupSize.x * gl_WorkGroupSize.y);
+        const int block_size = int((gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4));
 
-    if (depth >= 1.0) return;
+        ivec2 local_xy = ivec2((index % padded_width) - 2, (index / padded_width) - 2);
+        ivec2 pad_uv = group_base + local_xy * STRIDE;
+        load(local_xy, pad_uv);
 
-    vec3 normal = texelFetch(colortex7, iuv * 2, 0).rgb;
+        if (gl_LocalInvocationIndex < block_size - local_size)
+        {
+            index += local_size;
+
+            ivec2 local_xy = ivec2((index % padded_width) - 2, (index / padded_width) - 2);
+            ivec2 pad_uv = group_base + local_xy * STRIDE;
+            load(local_xy, pad_uv);
+        }
+    }
+
+    memoryBarrierShared();
+    barrier();
+
+    if (!lds_valid[getIndex(local_id)]) return;
+
+    vec3 normal = lds_normals[getIndex(local_id)];
 
     vec3 color = vec3(0.0);
+    float total_var = 0.0;
     float weight = 0.0001;
 
-    vec3 center_color = texelFetch(colortex5, iuv, 0).rgb;
+    vec3 center_color = lds_colors[getIndex(local_id)];
 
+    float center_var = lds_variance[getIndex(local_id)];
+
+    // Filter
     for (int i = -2; i <= 2; i++)
     {
         for (int j = -2; j <= 2; j++)
         {
-            ivec2 offset = ivec2(i, j) * STRIDE;
+            ivec2 offset = ivec2(i, j);
 
-            ivec2 sample_uv = clamp(iuv + offset, ivec2(0), ivec2(floor(viewWidth * 0.5) - 1, floor(viewHeight * 0.5) - 1));
-            vec3 sample_normal = texelFetch(colortex7, sample_uv * 2, 0).rgb;
-
-            vec3 sample_color = texelFetch(colortex5, sample_uv, 0).rgb;
+            //ivec2 sample_uv = clamp(iuv + offset, ivec2(0), ivec2(floor(viewWidth * 0.5) - 1, floor(viewHeight * 0.5) - 1));
+            vec3 sample_normal = lds_normals[getIndex(local_id + offset)];
+            vec3 sample_color = lds_colors[getIndex(local_id + offset)];
             vec3 color_diff = sample_color - center_color;
+            float sample_var = lds_variance[getIndex(local_id + offset)];
+            float var_diff = abs(center_var - sample_var);
 
-            float sample_weight = gaussian[i + 2] * gaussian[j + 2] * pow4(dot(normal, sample_normal));
+            float sample_weight = gaussian[i + 2] * gaussian[j + 2];
+            sample_weight *= pow(abs(dot(normal, sample_normal)), 32.0);
+            sample_weight *= exp(-dot(color_diff, vec3(1.0)) / (sqrt(var_diff + 0.001)));
 
-            if (isnan(sample_color.r)) continue;
+            if (isnan(sample_color.r) || !lds_valid[getIndex(local_id + offset)]) continue;
 
             color += sample_color * sample_weight;
+            total_var += sample_var * sample_weight;
             weight += sample_weight;
         }
     }
 
     imageStore(colorimg5, iuv, vec4(color / weight, 0.0));
+    imageStore(colorimg5, iuv + ivec2(viewWidth * 0.5, 0.0), vec4(total_var / weight));
 
 }

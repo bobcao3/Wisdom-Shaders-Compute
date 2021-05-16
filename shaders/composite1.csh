@@ -160,7 +160,7 @@ void main()
 {
     ivec2 iuv = ivec2(gl_GlobalInvocationID.xy) * 2;
     ivec2 iuv_orig = ivec2(gl_GlobalInvocationID.xy);
-    vec2 uv = (vec2(iuv) + 0.5) * invWidthHeight;
+    vec2 uv = (vec2(iuv) + 1.0) * invWidthHeight;
 
     float depth = texelFetch(colortex4, iuv_orig, 0).r;
 
