@@ -235,6 +235,10 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
     float samples_taken = 0.0;
 
     vec3 image_based_lighting = vec3(0.0);
+    
+    vec3 F = getF(mat.metalic, mat.roughness, abs(dot(view_dir, view_normal)), mat.albedo);
+
+    #ifdef INCLUDE_IBL
 
     for (int i = 0; i < LIGHTING_SAMPLES; i++)
     {
@@ -244,17 +248,17 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
         vec3 sample_dir = ImportanceSampleGGX(rand2d, view_normal, view_dir, mat.roughness, pdf);
         samples_taken++;
 
-        if (dot(sample_dir, view_normal) <= 0.0)
-        {
-            rand2d = vec2(getRand(), getRand());
-            sample_dir = ImportanceSampleGGX(rand2d, view_normal, view_dir, mat.roughness, pdf);
-            samples_taken++;
-        }
+        // if (dot(sample_dir, view_normal) <= 0.0)
+        // {
+        //     rand2d = vec2(getRand(), getRand());
+        //     sample_dir = ImportanceSampleGGX(rand2d, view_normal, view_dir, mat.roughness, pdf);
+        //     samples_taken++;
+        // }
 
         if (dot(sample_dir, view_normal) <= 0.0)
         {
             // Bruh
-            continue;
+            sample_dir = reflect(sample_dir, view_normal);
         }
 
         vec3 world_sample_dir = mat3(gbufferModelViewInverse) * sample_dir;
@@ -275,10 +279,11 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
 
     image_based_lighting *= 1.0 / samples_taken;
 
-    vec3 F = getF(mat.metalic, mat.roughness, abs(dot(view_dir, view_normal)), mat.albedo);
     image_based_lighting *= F;
 
     color += ((ao * smoothstep(0.1, 1.0, mat.lmcoord.y)) * image_based_lighting * 2.0);
+
+    #endif
 
     // --------------------------------------------------------------------
     //  Block-light
@@ -286,7 +291,7 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
 
     const vec3 blocklight_color = vec3(0.3, 0.2, 0.1);
 
-    color += (mat.albedo / PI) * max(1.0 / (pow2(max(0.95 - mat.lmcoord.x, 0.0) * 6.0) + 1.0) - 0.05, 0.0) * blocklight_color;
+    color += (mat.albedo / PI) * max(1.0 / (pow2(max(0.95 - mat.lmcoord.x, 0.0) * 6.0) + 1.0) - 0.05, 0.0) * blocklight_color * ao;
 
     // --------------------------------------------------------------------
     //  Directional

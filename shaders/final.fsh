@@ -16,7 +16,7 @@ const int colortex7Format = RGBA8_SNORM; // Normals
 const int colortex8Format = RGBA8; // Specular
 
 const int colortex9Format = R16F; // AO temporal
-const int colortex10Format = RGBA32F; // Color temporal (R11F_G11F_B10F for gameplay)
+const int colortex10Format = RGBA16F; // Color temporal (R11F_G11F_B10F for gameplay)
 const int colortex11Format = RGBA16F; // Color temporal
 const int colortex12Format = R11F_G11F_B10F; // SSPT temporal
 
@@ -87,10 +87,20 @@ void main()
     ivec2 iuv = ivec2(gl_FragCoord.st);
 
     vec3 color = texelFetch(colortex2, iuv, 0).rgb;
- 
-    // color = texelFetch(colortex11, iuv, 0).rgb;
 
-    color = luma(color) * pow(color / luma(color), vec3(1.5));
+    float local_average_luma = exp2(texelFetch(colortex0, iuv, 0).r) * (1.0 / 500.0);
+    float pixel_luma = luma(color);
+
+    color = color / pixel_luma; // Normalize
+
+#define SHARPEN_STRENGTH 0.3 // [0.1 0.2 0.3 0.4 0.5 0.6]
+
+    float new_luma = (pixel_luma - local_average_luma) * (1.0 + SHARPEN_STRENGTH) + local_average_luma;
+
+#define SATURATION 0.4 // [-1.0 -0.8 -0.6 -0.4 -0.2 0.0 0.2 0.4 0.6 0.8 1.0]
+
+    // Luma targeting
+    color = (new_luma) * pow(color, vec3(1.0 + SATURATION));
 
     color = ACESFitted(toGamma(color)) * 1.2;
 

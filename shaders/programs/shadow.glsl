@@ -82,7 +82,7 @@ void main() {
 
     vec4 shadow_view_pos = gl_ModelViewMatrix * input_pos;
 
-    if (mc_Entity.x != 0 && gl_VertexID % 4 == 0)
+    if (mc_Entity.x != 0)
     {
         vec4 world_pos = shadowModelViewInverse * shadow_view_pos;
 
@@ -97,6 +97,8 @@ void main() {
         vec3 tileColor = texture(tex, mc_midTexCoord.st).rgb;
 
         imageStore(shadowcolorimg0, planar_pos, uvec4(packUnorm4x8(vec4(tileColor, float(mc_Entity.x >= 9200))), 0, 0, 0));
+
+        /*
 
         int largest_offset = int(max(abs(world_pos_center.x), max(abs(world_pos_center.y), abs(world_pos_center.z))));
 
@@ -114,6 +116,7 @@ void main() {
             if (mc_Entity.x >= 9200 && largest_offset < DIRECT_LIGHTING_RADIUS) imageAtomicAdd(shadowcolorimg0, planar_pos + ivec2(shadowMapResolution / 2, voffset), 1);
             #endif
         }
+        */
     }
 
     gl_Position = gl_ProjectionMatrix * shadow_view_pos;

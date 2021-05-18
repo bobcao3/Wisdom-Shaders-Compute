@@ -53,6 +53,12 @@ float shadowTexSmooth(in vec3 spos, out float depth, float bias) {
 
 #define SCREEN_SPACE_SHADOWS
 
+#define SSPT
+
+#ifndef SSPT
+#define INCLUDE_IBL
+#endif
+
 #include "/libs/lighting.glsl"
 
 vec3 compute_lighting(ivec2 iuv, float depth)

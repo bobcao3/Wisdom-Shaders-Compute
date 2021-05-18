@@ -12,6 +12,11 @@ uniform vec3 previousCameraPosition;
 uniform mat4 gbufferModelView;
 uniform mat4 gbufferPreviousModelView;
 
+#include "/libs/color.glslinc"
+
+uniform vec2 taaOffset;
+uniform vec2 last_taaOffset;
+
 void main()
 {
     ivec2 iuv = ivec2(gl_FragCoord.st);
@@ -56,14 +61,24 @@ void main()
         vec2 history_uv = uv + texelFetch(colortex1, iuv, 0).rg;
         vec3 history = texture(colortex10, history_uv).rgb;
 
+        float history_local_luma = texelFetch(colortex10, iuv, 0).a;
+
         history = clamp(history, min_neighbour, max_neighbour);
 
         if (history_uv.x < 0.0 || history_uv.x >= 1.0 || history_uv.y < 0.0 || history_uv.y >= 1.0) history = current;
 
-        vec3 color = mix(history, current, 0.18);
+        float history_L = luma(history);
+        float current_L = luma(current);
 
-        gl_FragData[0] = vec4(color, 0.0);
-        gl_FragData[1] = vec4(color, 0.0);
+        history /= history_L + 0.001;
+        current /= current_L + 0.001;
+
+        float new_L = mix(history_L, current_L, 0.1);
+
+        vec3 color = mix(history, current, 0.2) * new_L;
+
+        gl_FragData[0] = vec4(color, 0);
+        gl_FragData[1] = vec4(color, log2(luma(color) * 500.0 + 0.001));
     //}
 
 }

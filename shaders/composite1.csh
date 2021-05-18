@@ -56,6 +56,8 @@ float shadowTexSmooth(in vec3 spos, out float depth, float bias) {
 uniform vec3 shadowLightPosition;
 uniform vec3 cameraPosition;
 
+#define INCLUDE_IBL
+
 #include "/libs/lighting.glsl"
 
 #define SSPT
@@ -95,6 +97,8 @@ void main()
 
         vec4 lm_specular_encoded = texelFetch(colortex8, iuv, 0).rgba;
 
+        vec2 lmcoord = lm_specular_encoded.rg;
+
         float roughness = (1.0 - lm_specular_encoded.b);
         // float metalic = lm_specular_encoded.a;
 
@@ -126,19 +130,36 @@ void main()
             if (dot(sample_dir, view_normal) <= 0.0)
             {
                 // Bruh
-                continue;
+                sample_dir = reflect(sample_dir, view_normal);
             }
 
             ivec2 hit_pos = raytrace(view_pos + view_normal * 0.2, iuv, sample_dir, stride, stride_multiplier, zThickness, lod, refine);
 
+            bool hit = false;
+
+            vec3 hit_proj_pos;
+            vec3 hit_view_pos;
+            vec3 hit_wpos;
+
+            vec3 real_sampled_dir;
+
             if (hit_pos != ivec2(-1) && hit_pos != iuv)
             {
-                //vec3 hit_color = texelFetch(colortex2, hit_pos, 0).rgb;
-                vec3 hit_proj_pos = getProjPos(hit_pos);
-                vec3 hit_view_pos = proj2view(hit_proj_pos);
-                vec3 hit_wpos = view2world(hit_view_pos);
+                hit_proj_pos = getProjPos(hit_pos);
+                hit_view_pos = proj2view(hit_proj_pos);
+                hit_wpos = view2world(hit_view_pos);
 
-                vec3 radiance = vec3(0.0);
+                real_sampled_dir = normalize(hit_view_pos - view_pos);
+
+                if (abs(dot(real_sampled_dir, sample_dir)) > 0.7)
+                    hit = true;
+            }
+
+            if (hit)
+            {
+                //vec3 hit_color = texelFetch(colortex2, hit_pos, 0).rgb;
+
+                vec3 radiance;
 
                 {
                     vec3 albedo = texelFetch(colortex6, hit_pos, 0).rgb;
@@ -159,9 +180,24 @@ void main()
                     radiance = getLighting(mat, view_normal, -sample_dir, hit_view_pos, hit_wpos, ao);
                 }
 
-                vec3 real_sampled_dir = normalize(hit_view_pos - view_pos);
-
                 color += radiance * max(0.0, dot(view_normal, real_sampled_dir));
+            }
+            else
+            {
+                vec3 world_sample_dir = mat3(gbufferModelViewInverse) * sample_dir;
+
+                vec2 skybox_uv = project_skybox2uv(world_sample_dir);
+
+                float skybox_lod = pow(roughness, 0.25) * 6.0;
+
+                int skybox_lod0 = int(floor(skybox_lod));
+                int skybox_lod1 = int(ceil(skybox_lod));
+                vec3 skybox_color = mix(
+                    sampleLODmanual(colortex3, skybox_uv, skybox_lod0).rgb,
+                    sampleLODmanual(colortex3, skybox_uv, skybox_lod1).rgb,
+                    fract(skybox_lod));
+
+                color += skybox_color * 2.0 * max(0.0, dot(view_normal, sample_dir)) * smoothstep(0.1, 1.0, lmcoord.y);
             }
         }
 
