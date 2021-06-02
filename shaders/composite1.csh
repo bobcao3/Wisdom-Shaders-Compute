@@ -197,7 +197,7 @@ void main()
                     sampleLODmanual(colortex3, skybox_uv, skybox_lod1).rgb,
                     fract(skybox_lod));
 
-                color += skybox_color * 2.0 * max(0.0, dot(view_normal, sample_dir)) * smoothstep(0.1, 1.0, lmcoord.y);
+                color += skybox_color * max(0.0, dot(view_normal, sample_dir)) * smoothstep(0.1, 1.0, lmcoord.y);
             }
         }
 

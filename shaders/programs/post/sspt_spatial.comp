@@ -6,6 +6,7 @@ const vec2 workGroupsRender = vec2(0.5f, 0.5f);
 
 uniform sampler2D colortex4;
 uniform sampler2D colortex5;
+uniform sampler2D colortex6;
 uniform sampler2D colortex7;
 
 layout (r11f_g11f_b10f) uniform image2D colorimg5;
@@ -24,6 +25,7 @@ int getIndex(ivec2 uv)
 
 shared lowp vec3 lds_normals[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
 shared lowp vec3 lds_colors[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
+shared lowp vec3 lds_albedo[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
 shared float lds_variance[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
 shared bool lds_valid[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
 
@@ -32,9 +34,11 @@ void load(ivec2 local_xy, ivec2 iuv)
     ivec2 sample_uv = clamp(iuv, ivec2(0), ivec2(floor(viewWidth * 0.5) - 1, floor(viewHeight * 0.5) - 1));
 
     vec3 sample_normal = texelFetch(colortex7, sample_uv * 2, 0).rgb;
+    vec3 sample_albedo = texelFetch(colortex6, sample_uv * 2, 0).rgb;
     vec3 sample_color = imageLoad(colorimg5, sample_uv).rgb;
     float sample_variance = imageLoad(colorimg5, sample_uv + ivec2(viewWidth * 0.5, 0.0)).r;
 
+    lds_albedo[getIndex(local_xy + 2)] = sample_albedo;
     lds_colors[getIndex(local_xy + 2)] = sample_color;
     lds_normals[getIndex(local_xy + 2)] = sample_normal;
     lds_variance[getIndex(local_xy + 2)] = sample_variance;
@@ -87,6 +91,8 @@ void main()
 
     float center_luma = dot(center_color, vec3(0.2126, 0.7152, 0.0722));
 
+    vec3 center_albedo = lds_albedo[getIndex(local_id)];
+
     // Filter
     for (int i = -2; i <= 2; i++)
     {
@@ -96,6 +102,7 @@ void main()
 
             vec3 sample_normal = lds_normals[getIndex(local_id + offset)];
             vec3 sample_color = lds_colors[getIndex(local_id + offset)];
+            vec3 sample_albedo = lds_albedo[getIndex(local_id + offset)] - center_albedo;
             float color_diff = abs(dot(sample_color, vec3(0.2126, 0.7152, 0.0722)) - center_luma);
             float sample_var = lds_variance[getIndex(local_id + offset)];
             float var_diff = abs(center_var - sample_var);
@@ -103,6 +110,7 @@ void main()
             float sample_weight = gaussian[i + 2] * gaussian[j + 2];
             sample_weight *= pow(abs(dot(normal, sample_normal)), 32.0);
             sample_weight *= exp(-color_diff / (sqrt(var_diff + 0.001)));
+            sample_weight *= exp(-dot(sample_albedo, sample_albedo) * 20.0);            
 
             if (isnan(sample_color.r) || !lds_valid[getIndex(local_id + offset)]) continue;
 

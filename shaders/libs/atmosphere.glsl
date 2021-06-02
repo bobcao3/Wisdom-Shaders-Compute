@@ -229,7 +229,7 @@ vec4 scatter(vec3 o, vec3 d, vec3 Ds, float lmax, float nseed, bool cloud) {
 	vec3 color = I * (max(vec3(0.0), R) * bR * phaseR);
 	color += (0.02 * I) * (max(vec3(0.0), R_moon) * bR * phaseR_moon);
 #else
-	vec3 color = I * (max(vec3(0.0), R) * bR * phaseR + max(vec3(0.0), M) * bM * phaseM);
+	vec3 color = I * (max(vec3(0.0), R) * bR * phaseR + max(vec3(0.0), M) * bM * (phaseM + 0.02));
 	color += (0.02 * I) * (max(vec3(0.0), R_moon) * bR * phaseR_moon + max(vec3(0.0), M_moon) * bM * phaseM_moon);
 #endif
 

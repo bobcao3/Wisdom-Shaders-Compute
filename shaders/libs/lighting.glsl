@@ -281,7 +281,7 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
 
     image_based_lighting *= F;
 
-    color += ((ao * smoothstep(0.1, 1.0, mat.lmcoord.y)) * image_based_lighting * 2.0);
+    color += ((ao * smoothstep(0.1, 1.0, mat.lmcoord.y)) * image_based_lighting);
 
     #endif
 

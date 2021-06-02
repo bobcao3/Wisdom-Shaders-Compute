@@ -42,6 +42,9 @@ void main()
 
     if (transparent.a > 0.01)
     {
+        z1 = z2 = z3 = z4 = uint((texelFetch(noisetex, iuv & 0xFF, 0).r * 65535.0) * 1000) ^ uint(frameCounter * 11);
+        getRand();
+
         float depth = texelFetch(depthtex0, iuv, 0).r;
 
         vec3 proj_pos = getProjPos(uv, depth);
@@ -63,11 +66,12 @@ void main()
         float weight = 1.0;
         for (int i = 0; i < 16; i++)
         {
-            vec2 offset = (WeylNth(i + rand1d) - 0.5);
+            vec2 offset = vec2(getRand(), getRand());
             float weight_s = 1.0 / (1.0 + 6.0 * offset.x * offset.x);
 
             offset.x *= 2.0 * PI;
             offset = vec2(cos(offset.x), sin(offset.x)) * offset.y;
+            offset.y *= aspectRatio;
 
             color.rgb += texture(colortex5, uv + 0.03 * offset * clamp(transparent.a * 0.3 * depth_diff, 0.0, 1.0)).rgb * weight_s;
             weight += weight_s;
