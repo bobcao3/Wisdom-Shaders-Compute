@@ -39,7 +39,7 @@ bool getVoxel(ivec3 volumePos)
 
     int voffset = 0;
 
-    return texelFetch(shadowcolor0, planar_pos + ivec2(0, voffset), 0).r == 1;
+    return (texelFetch(shadowcolor0, planar_pos + ivec2(0, voffset), 0).r & (1 << 30)) > 0;
 }
 
 uint getVoxelData(ivec3 volumePos, int lod)
@@ -67,7 +67,7 @@ uint getVoxelDataLight(ivec3 volumePos, int lod)
     return texelFetch(shadowcolor0, planar_pos + ivec2(hoffset, voffset), 0).r;
 }
 
-bool voxel_march(vec3 rayPos, vec3 rayDir, float tMax, out vec3 hitNormal, out vec3 hitPos)
+bool voxel_march(vec3 rayPos, vec3 rayDir, float tMax, out vec3 hitNormal, out vec3 hitPos, out uint data)
 {
     rayPos += mod(cameraPosition, 1.0);
 
@@ -80,7 +80,11 @@ bool voxel_march(vec3 rayPos, vec3 rayDir, float tMax, out vec3 hitNormal, out v
 	vec3 mm = vec3(0.0);
 	for( int i=0; i < MAX_RAY_STEPS; i++ ) 
 	{
-		if (getVoxel(ivec3(pos))) { res=1.0; break; }
+		if (getVoxel(ivec3(pos))) {
+            res = 1.0;
+            data = getVoxelData(ivec3(pos), 0);
+            break;
+        }
 		mm = step(dis.xyz, dis.yzx) * step(dis.xyz, dis.zxy);
 		dis += mm * rs * ri;
         pos += mm * rs;

@@ -61,6 +61,9 @@ float shadowTexSmooth(in vec3 spos, out float depth, float bias) {
 
 #include "/libs/lighting.glsl"
 
+#define SSPT
+
+
 vec3 compute_lighting(ivec2 iuv, float depth)
 {
     z1 = z2 = z3 = z4 = uint((texelFetch(noisetex, iuv & 0xFF, 0).r * 65535.0) * 1000) ^ uint(frameCounter * 11);
@@ -93,7 +96,12 @@ vec3 compute_lighting(ivec2 iuv, float depth)
     mat.metalic = lm_specular_encoded.a;
     mat.flag = normal_flag_encoded.a;
 
+#ifndef SSPT
     vec3 ao = getAO(iuv, depth, albedo);
+#else
+    vec3 ao = vec3(1.0);
+#endif
+
     vec3 view_normal = mat3(gbufferModelView) * normal_flag_encoded.rgb;
     
     color = getLighting(mat, view_normal, -normalize(view_pos), view_pos, world_pos, ao);

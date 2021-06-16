@@ -59,9 +59,7 @@ mat3 make_coord_space(vec3 n) {
 
 vec3 ImportanceSampleGGX(vec2 rand, vec3 N, vec3 wo, float roughness, out float pdf)
 {
-	rand = clamp(rand, vec2(0.0001), vec2(0.9999));
-
-//	roughness = clamp(roughness, 0.00001, 0.999999);
+	// rand = clamp(rand, vec2(0.0001), vec2(0.9999));
 
 	float tanTheta = roughness * sqrt(rand.x / (1.0 - rand.x));
 	float theta = clamp(atan(tanTheta), 0.0, 3.1415926 * 0.5 - 0.2);
@@ -291,7 +289,7 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
 
     const vec3 blocklight_color = vec3(0.3, 0.2, 0.1);
 
-    color += (mat.albedo / PI) * max(1.0 / (pow2(max(0.95 - mat.lmcoord.x, 0.0) * 6.0) + 1.0) - 0.05, 0.0) * blocklight_color * ao;
+    color += mat.albedo * max(1.0 / (pow2(max(0.95 - mat.lmcoord.x, 0.0) * 6.0) + 1.0) - 0.05, 0.0) * blocklight_color * ao;
 
     // --------------------------------------------------------------------
     //  Directional
@@ -322,7 +320,7 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
 
     if (mat.flag < 0.0)
     {
-        color = mat.albedo;
+        color = mat.albedo * 3.14159;
     }
 
     return color;

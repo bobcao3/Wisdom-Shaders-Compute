@@ -44,7 +44,7 @@ void load(ivec2 local_xy, ivec2 iuv)
     lds_variance[getIndex(local_xy + 2)] = sample_variance;
 
     float depth = texelFetch(colortex4, sample_uv, 0).r;
-    lds_valid[getIndex(local_xy + 2)] = depth < 1.0;
+    lds_valid[getIndex(local_xy + 2)] = depth < 1.0 && sample_uv == iuv;
 }
 
 void main()
@@ -99,9 +99,11 @@ void main()
         for (int j = -2; j <= 2; j++)
         {
             ivec2 offset = ivec2(i, j);
+            vec3 sample_color = lds_colors[getIndex(local_id + offset)];
+
+            if (isnan(sample_color.r) || !lds_valid[getIndex(local_id + offset)]) continue;
 
             vec3 sample_normal = lds_normals[getIndex(local_id + offset)];
-            vec3 sample_color = lds_colors[getIndex(local_id + offset)];
             vec3 sample_albedo = lds_albedo[getIndex(local_id + offset)] - center_albedo;
             float color_diff = abs(dot(sample_color, vec3(0.2126, 0.7152, 0.0722)) - center_luma);
             float sample_var = lds_variance[getIndex(local_id + offset)];
@@ -111,8 +113,6 @@ void main()
             sample_weight *= pow(abs(dot(normal, sample_normal)), 32.0);
             sample_weight *= exp(-color_diff / (sqrt(var_diff + 0.001)));
             sample_weight *= exp(-dot(sample_albedo, sample_albedo) * 20.0);            
-
-            if (isnan(sample_color.r) || !lds_valid[getIndex(local_id + offset)]) continue;
 
             color += sample_color * sample_weight;
             total_var += sample_var * sample_weight;

@@ -76,8 +76,10 @@ void main()
 
         color += indirect * albedo;
 
-        // color = texelFetch(colortex5, iuv, 0).rgb;
+        // color = indirect;
     }
+
+    // color = texelFetch(colortex5, iuv, 0).rgb;
 
     gl_FragData[0] = vec4(color, 1.0);
 }

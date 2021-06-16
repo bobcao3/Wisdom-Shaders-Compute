@@ -36,7 +36,16 @@ void main()
     ivec2 iuv_orig = ivec2(gl_FragCoord.xy);
     vec2 uv = (vec2(iuv) + 1.0) * invWidthHeight;
 
-    if (uv.y > 1.0) return;
+    if (uv.y > 1.0)
+    {
+        if (uv.x > 1.0)
+        {
+            vec4 v = texelFetch(colortex5, iuv_orig, 0);
+            gl_FragData[0] = v;
+            gl_FragData[1] = v;
+        }
+        return;
+    }
 
     bool squared = false;
     if (uv.x > 1.0)
@@ -64,6 +73,9 @@ void main()
         color = curr_color;
 
         vec2 history_uv = uv + texelFetch(colortex1, iuv, 0).rg;
+        float weight = 0.1;
+        
+        if (history_uv.x < 0.0 || history_uv.y < 0.0 || history_uv.x > 1.0 || history_uv.y > 1.0) weight = 1.0;
 
         if (squared)
         {
@@ -76,17 +88,18 @@ void main()
 
         if (isnan(history.x)) history = vec3(0.0);
 
-        color = mix(history, color, 0.1);
+        color = mix(history, color, weight);
 
         temporal = color;
 
         if (squared)
         {
+
             float x2 = color.r; // Not correct luma but whatever
             vec3 color_temporal = mix(
                 texture(colortex12, (history_uv - vec2(1.0, 0.0)) / 2).rgb,
                 curr_color,
-                0.1
+                weight
             );
             float x = dot(color_temporal, vec3(0.2126, 0.7152, 0.0722));
 

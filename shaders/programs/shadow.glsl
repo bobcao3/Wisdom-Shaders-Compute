@@ -94,9 +94,22 @@ void main() {
         ivec3 volume_pos = getVolumePos(world_pos_center, cameraPosition, 0);
         ivec2 planar_pos = volume2planar(volume_pos, 0);
 
-        vec3 tileColor = texture(tex, mc_midTexCoord.st).rgb;
+        vec3 tileColor = texture(tex, mc_midTexCoord.st).rgb * color.rgb;
 
-        imageStore(shadowcolorimg0, planar_pos, uvec4(packUnorm4x8(vec4(tileColor, float(mc_Entity.x >= 9200))), 0, 0, 0));
+        uint flag = 0;
+
+        // [31: Transparent | 30: Opaque | 29: Emmisive | 28~24: Reserved | 23:0 Color]
+
+        if (mc_Entity.x >= 29 && mc_Entity.x <= 33)
+            flag |= (1 << 31);
+        else
+            flag |= (1 << 30);
+
+        if (mc_Entity.x >= 9200) flag |= (1 << 29);
+
+        flag |= packUnorm4x8(vec4(tileColor, 0.0)) & 0xFFFFFF;
+
+        imageStore(shadowcolorimg0, planar_pos, uvec4(flag, 0, 0, 0));
 
         /*
 
@@ -110,7 +123,7 @@ void main() {
             ivec3 volume_pos = getVolumePos(world_pos_center, cameraPosition, i);
     
             ivec2 planar_pos = volume2planar(volume_pos, i);
-            //imageStore(shadowcolorimg0, planar_pos + ivec2(0, voffset), uvec4(1));
+            imageStore(shadowcolorimg0, planar_pos + ivec2(0, voffset), uvec4(1));
 
             #ifdef DIRECT_VOXEL_LIGHTING
             if (mc_Entity.x >= 9200 && largest_offset < DIRECT_LIGHTING_RADIUS) imageAtomicAdd(shadowcolorimg0, planar_pos + ivec2(shadowMapResolution / 2, voffset), 1);
