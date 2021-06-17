@@ -18,7 +18,7 @@ const int colortex8Format = RGBA8; // Specular
 const int colortex9Format = R16F; // AO temporal
 const int colortex10Format = RGBA16F; // Color temporal (R11F_G11F_B10F for gameplay)
 const int colortex11Format = RGBA16F; // Color temporal
-const int colortex12Format = R11F_G11F_B10F; // SSPT temporal
+const int colortex12Format = RGBA16F; // SSPT temporal
 
 const int shadowcolor0Format = R32UI;
 const int shadowcolor1Format = RG32F;
@@ -102,7 +102,7 @@ void main()
     // Luma targeting
     color = (new_luma) * pow(color, vec3(1.0 + SATURATION));
 
-    color = ACESFitted(toGamma(color)) * 1.2;
+    color = ACESFitted(toGamma(color));
 
 #ifdef APPLY_LUT
     color = applyLUT(color);

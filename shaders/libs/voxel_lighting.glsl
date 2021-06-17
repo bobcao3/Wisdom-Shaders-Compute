@@ -29,17 +29,23 @@ bool intersect_bbox(in Ray r, vec3 minp, vec3 maxp, out float maxT)
     return false;
 }
 
-const int MAX_RAY_STEPS = 128;
+const int MAX_RAY_STEPS = 32;
 
-bool getVoxel(ivec3 volumePos)
+bool getVoxel(ivec3 volumePos, bool terminate)
 {
     ivec2 planar_pos = volume2planar(volumePos + ivec3(volume_width, volume_depth, volume_height) / 2, 0);
 
-    if (planar_pos == ivec2(-1)) return false;
+    if (planar_pos == ivec2(-1))
+    {
+        terminate = true;
+        return false;
+    }
 
     int voffset = 0;
 
-    return (texelFetch(shadowcolor0, planar_pos + ivec2(0, voffset), 0).r & (1 << 30)) > 0;
+    uint d = texelFetch(shadowcolor0, planar_pos + ivec2(0, voffset), 0).r;
+
+    return (d & (1 << 30)) > 0;
 }
 
 uint getVoxelData(ivec3 volumePos, int lod)
@@ -78,12 +84,17 @@ bool voxel_march(vec3 rayPos, vec3 rayDir, float tMax, out vec3 hitNormal, out v
 	
 	float res = -1.0;
 	vec3 mm = vec3(0.0);
-	for( int i=0; i < MAX_RAY_STEPS; i++ ) 
+	for(int i = 0; i < MAX_RAY_STEPS; i++) 
 	{
-		if (getVoxel(ivec3(pos))) {
+        bool terminate = false;
+		if (getVoxel(ivec3(pos), terminate)) {
             res = 1.0;
             data = getVoxelData(ivec3(pos), 0);
             break;
+        }
+        if (terminate)
+        {
+            return false;
         }
 		mm = step(dis.xyz, dis.yzx) * step(dis.xyz, dis.zxy);
 		dis += mm * rs * ri;

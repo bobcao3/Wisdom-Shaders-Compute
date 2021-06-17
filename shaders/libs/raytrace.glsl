@@ -1,4 +1,4 @@
-#define SSPT_SAMPLES 22
+#define SSPT_SAMPLES 16
 
 ivec2 raytrace(in vec3 vpos, in vec2 iuv, in vec3 dir, float stride, float stride_multiplier, float zThickness, inout int lod, bool refine) {
     float rayLength = clamp(-vpos.z, 0.1, 16.0);

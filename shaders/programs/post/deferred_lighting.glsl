@@ -59,6 +59,8 @@ float shadowTexSmooth(in vec3 spos, out float depth, float bias) {
 #define INCLUDE_IBL
 #endif
 
+#define SUBSURFACE
+
 #include "/libs/lighting.glsl"
 
 #define SSPT

@@ -1,5 +1,5 @@
 #version 450 compatibility
 
-#define STRIDE 2
+#define STRIDE 8
 
 #include "/programs/post/sspt_spatial.comp"

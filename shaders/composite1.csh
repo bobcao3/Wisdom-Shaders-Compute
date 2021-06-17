@@ -69,6 +69,9 @@ uniform usampler2D shadowcolor0;
 
 #define SSPT_RAYS 1 // [1 2 4 8 16]
 
+#define RAY_GUIDING
+
+#ifdef RAY_GUIDING
 shared vec2 sampleLoc[8][8][SSPT_RAYS];
 shared float contributions[8][8][SSPT_RAYS];
 shared float weights[8][8];
@@ -134,6 +137,7 @@ float getSelectionPDF(int i, int j)
 
     return max(1.0, pdf);
 }
+#endif
 
 void main()
 {
@@ -145,7 +149,8 @@ void main()
 
     ivec2 halfscreen_offset = ivec2(viewWidth, viewHeight) >> 1;
 
-    weights[gl_LocalInvocationID.x][gl_LocalInvocationID.y] = texelFetch(colortex12, iuv_orig + halfscreen_offset, 0).r + 0.01;
+#ifdef RAY_GUIDING
+    weights[gl_LocalInvocationID.x][gl_LocalInvocationID.y] = texelFetch(colortex12, iuv_orig + halfscreen_offset, 0).r + 0.02;
 
     barrier();
     memoryBarrierShared();
@@ -192,6 +197,7 @@ void main()
 
     barrier();
     memoryBarrierShared();
+#endif
 
 #ifdef SSPT
     if (depth < 1.0)
@@ -219,7 +225,7 @@ void main()
         vec2 lmcoord = lm_specular_encoded.rg;
 
         float roughness = (1.0 - lm_specular_encoded.b);
-        // float metalic = lm_specular_encoded.a;
+        float metalic = lm_specular_encoded.a;
 
         bool refine = roughness < 0.3;
 
@@ -231,6 +237,7 @@ void main()
 
         for (int i = 0; i < SSPT_RAYS; i++)
         {
+#ifdef RAY_GUIDING
             int column = binarySearchColumns(getRand());
             int row = binarySearchRows(column, getRand());
 
@@ -238,24 +245,39 @@ void main()
 
             sampleLoc[gl_LocalInvocationID.x][gl_LocalInvocationID.y][i] = rand2d;
 
-            float pdf;
-            vec3 sample_dir = ImportanceSampleGGX(rand2d, view_normal, view_dir, roughness, pdf);
+            float selectPdf = getSelectionPDF(column, row);
+#else
+            vec2 rand2d = vec2(getRand(), getRand());
+            float selectPdf = 1.0;
+#endif
+
+            vec3 sample_dir;
+            float glossy_threshold = clamp(roughness / 0.6, 0.0, 1.0);
+
+            if (getRand() < glossy_threshold)
+            {
+                float pdf;
+                sample_dir = ImportanceSampleLambertian(rand2d, view_normal, pdf);
+
+                selectPdf *= glossy_threshold;
+            }
+            else
+            {
+                float pdf;
+                sample_dir = ImportanceSampleGGX(rand2d, view_normal, view_dir, roughness, pdf);
+
+                if (dot(sample_dir, view_normal) <= 0.0)
+                {
+                    // Bruh
+                    sample_dir = reflect(sample_dir, view_normal);
+                }
+
+                selectPdf *= 1.0 - glossy_threshold;
+            }
+            
             samples_taken++;
 
-            // if (dot(sample_dir, view_normal) <= 0.0)
-            // {
-            //     rand2d = vec2(getRand(), getRand());
-            //     sample_dir = ImportanceSampleGGX(rand2d, view_normal, view_dir, roughness, pdf);
-            //     samples_taken++;
-            // }
-
-            if (dot(sample_dir, view_normal) <= 0.0)
-            {
-                // Bruh
-                sample_dir = reflect(sample_dir, view_normal);
-            }
-
-            ivec2 hit_pos = raytrace(view_pos + view_normal * 0.2, iuv, sample_dir, stride, stride_multiplier, zThickness, lod, refine);
+            ivec2 hit_pos = raytrace(view_pos + view_normal * 0.05, iuv, sample_dir, stride, stride_multiplier, zThickness, lod, refine);
 
             bool hit = false;
 
@@ -268,6 +290,7 @@ void main()
             if (hit_pos != ivec2(-1) && hit_pos != iuv)
             {
                 hit_proj_pos = getProjPos(hit_pos);
+                float old_z = hit_view_pos.z;
                 hit_view_pos = proj2view(hit_proj_pos);
                 hit_wpos = view2world(hit_view_pos);
 
@@ -277,18 +300,14 @@ void main()
                     hit = true;
             }
 
-            float selectPdf = getSelectionPDF(column, row);
-
             vec3 world_sample_dir = mat3(gbufferModelViewInverse) * sample_dir;
             bool vox_hit = false;
             vec3 vox_hit_normal;
             uint vox_data;
 
-            hit = false;
-
             if (!hit)
             {
-                vox_hit = voxel_march(world_pos + world_normal * 0.2, world_sample_dir, 15.0, vox_hit_normal, hit_wpos, vox_data);
+                vox_hit = voxel_march(world_pos + world_normal * 0.05, world_sample_dir, 200.0, vox_hit_normal, hit_wpos, vox_data);
                 hit_view_pos = (gbufferModelView * vec4(hit_wpos, 1.0)).rgb;
                 real_sampled_dir = sample_dir;
                 hit = vox_hit;
@@ -301,13 +320,18 @@ void main()
                     if (hit_pos.x >= 0 && hit_pos.y >= 0 && hit_pos.x < viewWidth && hit_pos.y < viewHeight)
                     {
                         hit_proj_pos = getProjPos(hit_pos);
+                        float old_z = hit_view_pos.z;
                         hit_view_pos = proj2view(hit_proj_pos);
                         hit_wpos = view2world(hit_view_pos);
 
                         vec3 _real_sampled_dir = normalize(hit_view_pos - view_pos);
 
-                        if (abs(dot(_real_sampled_dir, sample_dir)) > 0.7 && hit_proj_pos.z < 1.0)
-                        {
+                        if (
+                            abs(dot(_real_sampled_dir, sample_dir)) > 0.7 &&
+                            hit_proj_pos.z < 1.0 &&
+                            (vox_data & (1 << 30)) > 0 &&
+                            abs((old_z - hit_view_pos.z) / hit_view_pos.z) < 0.05
+                        ) {
                             vox_hit = false;
                             real_sampled_dir = _real_sampled_dir;
                         }
@@ -331,7 +355,7 @@ void main()
                         bool vox_emmisive = (vox_data & (1 << 29)) > 0;
 
                         mat.albedo = fromGamma(unpackUnorm4x8(vox_data).rgb);
-                        mat.lmcoord = vec2(0.0, lmcoord.y);
+                        mat.lmcoord = vec2(0.0, pow(lmcoord.y, 5.0));
                         mat.roughness = 0.9;
                         mat.metalic = 0.0;
                         mat.flag = vox_emmisive ? -1.0 : 0.0;
@@ -346,7 +370,7 @@ void main()
                         vec4 lm_specular_encoded = texelFetch(colortex8, hit_pos, 0).rgba;
 
                         mat.albedo = albedo;
-                        mat.lmcoord = lm_specular_encoded.rg;
+                        mat.lmcoord = pow(lm_specular_encoded.rg, vec2(5.0));
                         mat.roughness = (1.0 - lm_specular_encoded.b);
                         mat.metalic = lm_specular_encoded.a;
                         mat.flag = normal_flag_encoded.a;
@@ -359,10 +383,12 @@ void main()
 
                 vec3 Lin = radiance / selectPdf;
 
-                //if (vox_hit) Lin = vec3(0.0);
+                // if (vox_hit) Lin = vec3(0.0);
 
                 color += Lin;
+#ifdef RAY_GUIDING
                 contributions[gl_LocalInvocationID.x][gl_LocalInvocationID.y][i] = dot(Lin, vec3(0.3, 0.6, 0.1));
+#endif
             }
             else
             {
@@ -377,9 +403,11 @@ void main()
                     sampleLODmanual(colortex3, skybox_uv, skybox_lod1).rgb,
                     fract(skybox_lod));
 
-                vec3 Lin = skybox_color * max(0.0, dot(view_normal, sample_dir)) * smoothstep(0.1, 1.0, lmcoord.y) / selectPdf;
+                vec3 Lin = skybox_color / selectPdf; //  * smoothstep(0.1, 1.0, lmcoord.y)
                 color += Lin;
+#ifdef RAY_GUIDING
                 contributions[gl_LocalInvocationID.x][gl_LocalInvocationID.y][i] = dot(Lin, vec3(0.3, 0.6, 0.1));
+#endif
             }
         }
 
@@ -388,6 +416,7 @@ void main()
         imageStore(colorimg5, iuv_orig, vec4(color, 1.0));
     }
 
+#ifdef RAY_GUIDING
     barrier();
 
     weights[gl_LocalInvocationID.x][gl_LocalInvocationID.y] = 0.0;
@@ -397,6 +426,7 @@ void main()
 
     if (gl_LocalInvocationID.x == 0 && gl_LocalInvocationID.y == 0)
     {
+        float normalize_sum = 0.001;
         for (int i = 0; i < 8; i++)
         {
             for (int j = 0; j < 8; j++)
@@ -407,6 +437,7 @@ void main()
                     dir *= 8.0;
                     ivec2 iloc = clamp(ivec2(floor(dir)), ivec2(0), ivec2(7));
                     weights[iloc.x][iloc.y] += contributions[i][j][k];
+                    normalize_sum += contributions[i][j][k];
                 }
             }
         }
@@ -415,14 +446,15 @@ void main()
         {
             for (int j = 0; j < 8; j++)
             {
-                float last_contrib = clamp(texelFetch(colortex12, iuv_orig + halfscreen_offset + ivec2(i, j), 0).r, 0.0, 10.0);
-                float new_contrib = max(last_contrib * 0.97, weights[i][j]);
+                float last_contrib = texelFetch(colortex12, iuv_orig + halfscreen_offset + ivec2(i, j), 0).r;
+                float new_contrib = max(last_contrib * 0.97, weights[i][j] / normalize_sum);
 
                 imageStore(colorimg5, iuv_orig + halfscreen_offset + ivec2(i, j), vec4(new_contrib, 0.0, 0.0, 1.0));
             }
         }
 
     }
+#endif
 
 #endif
 }

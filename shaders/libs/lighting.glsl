@@ -83,6 +83,16 @@ vec3 ImportanceSampleGGX(vec2 rand, vec3 N, vec3 wo, float roughness, out float 
 	return wi;
 }
 
+vec3 ImportanceSampleLambertian(vec2 rand, vec3 N, out float pdf)
+{
+    float r = sqrt(rand.x);
+    float theta = 2.0f * 3.14159265f * rand.y;
+    
+    pdf = sqrt(1 - rand.x) / 3.14159265f;
+
+    return make_coord_space(N) * vec3(r * cos(theta), r * sin(theta), sqrt(1 - rand.x));
+}
+
 bool match(float a, float b)
 {
 	return (a > b - 0.002 && a < b + 0.002);
@@ -119,54 +129,17 @@ vec3 brdf_ggx_oren_schlick(vec3 albedo, vec3 radiance, float roughness, float me
 
 	vec3 kD = vec3(float(1.0) - float(metalic));
 	
+#ifdef SUBSURFACE
 	float NdotL = min(1.0, float(max(0.0, dot(N, L)) + float(subsurface * 0.3)));                
-	
+#else	
+	float NdotL = dot(N, L);                
+#endif	
+
 	vec3 numerator    = NDF * G * F;
 	float denominator = float(4.0) * max(NdotL, float(0.005)); // * max(float(dot(N, -V)), float(0.005));
-	vec3 specular     = numerator / denominator;  
+	vec3 specular     = clamp(numerator / denominator, vec3(0.0), vec3(10.0));
 	
 	return vec3(max(vec3(0.0), (kD * albedo / float(3.1415926) + specular) * radiance * NdotL));
-}
-
-vec3 diffuse_brdf_ggx_oren_schlick(vec3 albedo, vec3 radiance, float roughness, float metalic, vec3 F0, vec3 N, vec3 V)
-{
-	vec3 F = fresnelSchlickRoughness(max(0.0, dot(N, V)), F0, roughness);
-
-	vec3 kS = F;
-	vec3 kD = vec3(1.0) - kS;
-	kD *= 1.0 - metalic;	  
-	
-	return kD * albedo / 3.1415926 * radiance;
-}
-
-vec3 specular_brdf_ggx_oren_schlick(vec3 radiance, float roughness, vec3 F0, vec3 L, vec3 N, vec3 V)
-{
-	vec3 H = normalize(L + V);
-	float NDF = DistributionGGX(N, H, roughness);
-	float G = oren_nayer(V, L, N, roughness);
-	vec3 F = fresnelSchlickRoughness(max(0.0, dot(H, V)), F0, roughness);
-	
-	vec3 numerator    = NDF * G * F;
-	float denominator = 4.0 * max(dot(N, V), 0.001) * max(dot(N, L), 0.001);
-	vec3 specular     = numerator / denominator;  
-	
-	float NdotL = max(dot(N, L), 0.0);                
-	return max(vec3(0.0), specular * radiance * NdotL); 
-}
-
-vec3 orenNayarDiffuse(vec3 lightDirection, vec3 viewDirection, vec3 surfaceNormal, float roughness, vec3 albedo, float subsurface) {  
-    float LdotV = dot(lightDirection, viewDirection);
-    float NdotL = dot(lightDirection, surfaceNormal);
-    float NdotV = dot(surfaceNormal, viewDirection);
-
-    float s = LdotV - NdotL * NdotV;
-    float t = mix(1.0, max(NdotL, NdotV), step(0.0, s));
-
-    float sigma2 = roughness * roughness;
-    vec3 A = 1.0 + sigma2 * (albedo / (sigma2 + 0.13) + 0.5 / (sigma2 + 0.33));
-    float B = 0.45 * sigma2 / (sigma2 + 0.09);
-
-    return albedo * min(1.0, NdotL + subsurface * 0.5) * (A + B * s / t) / PI;
 }
 
 float screen_space_shadows(vec3 view_pos, vec3 view_dir, float nseed)
@@ -242,22 +215,36 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
     {
         vec2 rand2d = vec2(getRand(), getRand());
 
-        float pdf;
-        vec3 sample_dir = ImportanceSampleGGX(rand2d, view_normal, view_dir, mat.roughness, pdf);
-        samples_taken++;
+        float lobe_selection = getRand();
+        float selectPdf = 1.0;
 
-        // if (dot(sample_dir, view_normal) <= 0.0)
-        // {
-        //     rand2d = vec2(getRand(), getRand());
-        //     sample_dir = ImportanceSampleGGX(rand2d, view_normal, view_dir, mat.roughness, pdf);
-        //     samples_taken++;
-        // }
+        bool diffuse = false;
+        vec3 sample_dir;
 
-        if (dot(sample_dir, view_normal) <= 0.0)
+        if (getRand() < mat.metalic)
         {
-            // Bruh
-            sample_dir = reflect(sample_dir, view_normal);
+            float pdf;
+            sample_dir = ImportanceSampleGGX(rand2d, view_normal, view_dir, mat.roughness, pdf);
+
+            selectPdf /= max(mat.metalic, 1e-5);
+
+            diffuse = true;
+            
+            if (dot(sample_dir, view_normal) <= 0.0)
+            {
+                // Bruh
+                sample_dir = reflect(sample_dir, view_normal);
+            }
         }
+        else
+        {
+            float pdf;
+            sample_dir = ImportanceSampleLambertian(rand2d, view_normal, pdf);
+
+            selectPdf /= max(1.0 - mat.metalic, 1e-5);
+        }
+
+        samples_taken++;
 
         vec3 world_sample_dir = mat3(gbufferModelViewInverse) * sample_dir;
 
@@ -272,14 +259,21 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
             sampleLODmanual(colortex3, skybox_uv, skybox_lod1).rgb,
             fract(skybox_lod));
 
-        image_based_lighting += skybox_color * max(0.0, dot(view_normal, sample_dir));
+        vec3 Li = skybox_color / selectPdf;
+
+        if (diffuse)
+        {
+            image_based_lighting += Li * ao * mat.albedo / 3.1415926;
+        }
+        else
+        {
+            image_based_lighting += Li * F;
+        }
     }
 
     image_based_lighting *= 1.0 / samples_taken;
 
-    image_based_lighting *= F;
-
-    color += ((ao * smoothstep(0.1, 1.0, mat.lmcoord.y)) * image_based_lighting);
+    color += smoothstep(0.1, 1.0, mat.lmcoord.y) * image_based_lighting;
 
     #endif
 
@@ -289,7 +283,7 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
 
     const vec3 blocklight_color = vec3(0.3, 0.2, 0.1);
 
-    color += mat.albedo * max(1.0 / (pow2(max(0.95 - mat.lmcoord.x, 0.0) * 6.0) + 1.0) - 0.05, 0.0) * blocklight_color * ao;
+    // color += mat.albedo * max(1.0 / (pow2(max(0.95 - mat.lmcoord.x, 0.0) * 6.0) + 1.0) - 0.05, 0.0) * blocklight_color * ao;
 
     // --------------------------------------------------------------------
     //  Directional
@@ -320,7 +314,7 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
 
     if (mat.flag < 0.0)
     {
-        color = mat.albedo * 3.14159;
+        color = mat.albedo * 10.0;
     }
 
     return color;

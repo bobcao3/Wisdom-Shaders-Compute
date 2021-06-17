@@ -61,10 +61,12 @@ void main()
     vec3 temporal = vec3(0.0);
     vec3 color = vec3(0.0);
 
+    float view_z;
+
     if (depth < 1.0)
     {
         vec3 proj_pos = getProjPos(uv, depth);
-        vec3 view_pos = proj2view(proj_pos);
+        vec3 view_pos = proj2view(proj_pos); view_z = view_pos.z;
         vec3 world_pos = view2world(view_pos);
         vec3 world_dir = normalize(world_pos);
         vec3 view_dir = normalize(view_pos);
@@ -73,40 +75,53 @@ void main()
         color = curr_color;
 
         vec2 history_uv = uv + texelFetch(colortex1, iuv, 0).rg;
-        float weight = 0.1;
+        float weight = 0.07;
         
         if (history_uv.x < 0.0 || history_uv.y < 0.0 || history_uv.x > 1.0 || history_uv.y > 1.0) weight = 1.0;
 
         if (squared)
         {
-            color = vec3(dot(color, vec3(0.2126, 0.7152, 0.0722)));
-            color *= color;
+            float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+            color = vec3(luma, luma * luma, 1);
             history_uv.x += 1.0;
         }
 
-        vec3 history = texture(colortex12, history_uv / 2).rgb;
+        vec4 history = texture(colortex12, history_uv * 0.5);
+        // vec4 history = texelFetch(colortex12, ivec2((history_uv) * vec2(viewWidth, viewHeight) * 0.5), 0);
 
-        if (isnan(history.x)) history = vec3(0.0);
+        if (isnan(history.x)) history = vec4(0.0);
 
-        color = mix(history, color, weight);
+        if (abs((view_pos.z - history.a) / view_pos.z) > 0.1)
+        {
+            weight = 1.0;
+        }
+
+        if (squared)
+        {
+            if (weight > 0.9)
+            {
+                color = vec3(0.0, 1.0, 1.0);
+            }
+            // else
+            // {
+            //     color += history.rgb;
+            //     if (color.b > 16.0) color *= 0.5;
+            // }
+            color = mix(history.rgb, color, weight);
+        }
+        else
+        {
+            color = mix(history.rgb, color, weight);
+        }
 
         temporal = color;
 
         if (squared)
         {
-
-            float x2 = color.r; // Not correct luma but whatever
-            vec3 color_temporal = mix(
-                texture(colortex12, (history_uv - vec2(1.0, 0.0)) / 2).rgb,
-                curr_color,
-                weight
-            );
-            float x = dot(color_temporal, vec3(0.2126, 0.7152, 0.0722));
-
-            color = vec3(abs(x2 - x * x));
+            color = vec3(abs((color.g) - pow2(color.r)));
         }
     }
 
     gl_FragData[0] = vec4(color, 1.0);
-    gl_FragData[1] = vec4(temporal, 1.0);
+    gl_FragData[1] = vec4(temporal, view_z);
 }
