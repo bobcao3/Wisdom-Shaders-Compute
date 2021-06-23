@@ -58,10 +58,9 @@ uniform vec3 shadowLightPosition;
 uniform vec3 cameraPosition;
 
 #define INCLUDE_IBL
+#define SSPT
 
 #include "/libs/lighting.glsl"
-
-#define SSPT
 
 uniform usampler2D shadowcolor0;
 
@@ -252,7 +251,7 @@ void main()
 #endif
 
             vec3 sample_dir;
-            float glossy_threshold = clamp(roughness / 0.6, 0.0, 1.0);
+            float glossy_threshold = clamp(roughness, 0.0, 1.0);
 
             if (getRand() < glossy_threshold)
             {
@@ -412,6 +411,9 @@ void main()
         }
 
         color /= samples_taken;
+
+        if (isnan(color.r) || isnan(color.g) || isnan(color.b)) color = vec3(0.0);
+        color = clamp(color, vec3(1e-5), vec3(1e4));
 
         imageStore(colorimg5, iuv_orig, vec4(color, 1.0));
     }

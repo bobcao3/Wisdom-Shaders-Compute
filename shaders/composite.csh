@@ -73,7 +73,7 @@ void main()
             offset = vec2(cos(offset.x), sin(offset.x)) * offset.y;
             offset.y *= aspectRatio;
 
-            color.rgb += texture(colortex5, uv + 0.03 * offset * clamp(transparent.a * 0.3 * depth_diff, 0.0, 1.0)).rgb * weight_s;
+            color.rgb += texture(colortex5, uv + 0.01 * offset * clamp(transparent.a * 0.05 * depth_diff, 0.0, 1.0)).rgb * weight_s;
             weight += weight_s;
         }
         color.rgb /= weight;

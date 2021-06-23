@@ -281,9 +281,13 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
     //  Block-light
     // --------------------------------------------------------------------
 
+#ifdef SSPT
+    const vec3 blocklight_color = vec3(0.1, 0.08, 0.06);
+#else
     const vec3 blocklight_color = vec3(0.3, 0.2, 0.1);
-
-    // color += mat.albedo * max(1.0 / (pow2(max(0.95 - mat.lmcoord.x, 0.0) * 6.0) + 1.0) - 0.05, 0.0) * blocklight_color * ao;
+#endif
+    
+    color += mat.albedo * max(1.0 / (pow2(max(0.95 - mat.lmcoord.x, 0.0) * 6.0) + 1.0) - 0.05, 0.0) * blocklight_color * ao;
 
     // --------------------------------------------------------------------
     //  Directional
