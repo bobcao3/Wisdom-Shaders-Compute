@@ -2,6 +2,8 @@
 
 #include "/libs/compat.glsl"
 
-#define SPECULAR_ONLY
+#define RAY_GUIDING
+#define INCLUDE_IBL
+#define DIFFUSE_ONLY
 
 #include "/programs/post/rt_lighting.glsl"

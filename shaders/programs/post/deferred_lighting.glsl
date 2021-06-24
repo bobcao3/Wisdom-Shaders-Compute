@@ -11,7 +11,9 @@ uniform sampler2D colortex7;
 uniform sampler2D colortex8;
 uniform sampler2D colortex15;
 
-layout (r11f_g11f_b10f) uniform image2D colorimg5;
+#define OUTPUT_IMAGE colorimg2
+
+layout (r11f_g11f_b10f) uniform image2D OUTPUT_IMAGE;
 
 #include "/libs/transform.glsl"
 #include "/libs/noise.glsl"
@@ -153,10 +155,10 @@ void main()
     {
         vec3 color = compute_lighting(iuv00, 1.0);
 
-        if (depth00 >= 1.0) imageStore(colorimg5, iuv00, vec4(color, 0.0));
-        if (depth01 >= 1.0) imageStore(colorimg5, iuv01, vec4(color, 0.0));
-        if (depth10 >= 1.0) imageStore(colorimg5, iuv10, vec4(color, 0.0));
-        if (depth11 >= 1.0) imageStore(colorimg5, iuv11, vec4(color, 0.0));
+        if (depth00 >= 1.0) imageStore(OUTPUT_IMAGE, iuv00, vec4(color, 0.0));
+        if (depth01 >= 1.0) imageStore(OUTPUT_IMAGE, iuv01, vec4(color, 0.0));
+        if (depth10 >= 1.0) imageStore(OUTPUT_IMAGE, iuv10, vec4(color, 0.0));
+        if (depth11 >= 1.0) imageStore(OUTPUT_IMAGE, iuv11, vec4(color, 0.0));
     }
 
 #else
@@ -165,7 +167,7 @@ void main()
 
     float depth = texelFetch(depthtex0, iuv, 0).r;
 
-    if (depth < 1.0) imageStore(colorimg5, iuv, vec4(compute_lighting(iuv, depth), 0.0));
+    if (depth < 1.0) imageStore(OUTPUT_IMAGE, iuv, vec4(compute_lighting(iuv, depth), 0.0));
 
 #endif
 

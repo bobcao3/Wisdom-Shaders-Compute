@@ -11,8 +11,10 @@ uniform float aspectRatio;
 
 uniform vec2 invWidthHeight;
 
+#define INPUT_TEX colortex2
+
 uniform sampler2D colortex0;
-uniform sampler2D colortex5;
+uniform sampler2D INPUT_TEX;
 uniform sampler2D colortex3;
 uniform sampler2D colortex4;
 uniform sampler2D colortex6;
@@ -55,7 +57,7 @@ void main()
         float hash1d = texelFetch(colortex15, (iuv + ivec2(WeylNth(frameCounter & 0xFFFF) * 256)) & 0xFF, 0).r;
         int rand1d = (frameCounter & 0xFFFF) + int(bayer16(vec2(iuv)) * 256.0);
         
-        vec3 color = texelFetch(colortex5, iuv, 0).rgb;
+        vec3 color = texelFetch(INPUT_TEX, iuv, 0).rgb;
 
         vec3 world_sun_dir = mat3(gbufferModelViewInverse) * (sunPosition * 0.01);
 
@@ -73,7 +75,7 @@ void main()
             offset = vec2(cos(offset.x), sin(offset.x)) * offset.y;
             offset.y *= aspectRatio;
 
-            color.rgb += texture(colortex5, uv + 0.01 * offset * clamp(transparent.a * 0.05 * depth_diff, 0.0, 1.0)).rgb * weight_s;
+            color.rgb += texture(INPUT_TEX, uv + 0.01 * offset * clamp(transparent.a * 0.05 * depth_diff, 0.0, 1.0)).rgb * weight_s;
             weight += weight_s;
         }
         color.rgb /= weight;
@@ -89,6 +91,6 @@ void main()
     }
     else
     {
-        imageStore(colorimg2, iuv, vec4(texelFetch(colortex5, iuv, 0).rgb, 1.0));
+        imageStore(colorimg2, iuv, vec4(texelFetch(INPUT_TEX, iuv, 0).rgb, 1.0));
     }
 }

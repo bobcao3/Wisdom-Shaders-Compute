@@ -151,7 +151,6 @@ float BSDF_D_theta_h(float theta_h, float alpha)
 float BSDF_D(vec3 h, vec3 n, float alpha)
 {
     float theta_h = getTheta(h, n);
-    // if (theta_h * alpha < 1e-2) return 1.0;
     return BSDF_D_theta_h(theta_h, alpha);
 }
 
@@ -224,7 +223,7 @@ vec3 getF0(float metalic)
     return vec3(1.0 - metalic_generated);
 }
 
-vec3 BSDF(vec3 wo, vec3 wi, vec3 N, float metalic, float alpha, vec3 albedo)
+vec3 BSDF(vec3 wo, vec3 wi, vec3 N, float metalic, float alpha, vec3 albedo, bool do_specular)
 {
     vec3 h = normalize(wo + wi);
 
@@ -238,12 +237,18 @@ vec3 BSDF(vec3 wo, vec3 wi, vec3 N, float metalic, float alpha, vec3 albedo)
 
 #ifdef DIFFUSE_ONLY
         return vec3(0.0);
+#elif defined(SPECULAR_ONLY)
+        return F * G;
 #else
         return F * G * D;
 #endif
     } else {
         // Non-metals
         vec3 F0 = getF0(metalic);
+// #ifdef SPECULAR_ONLY
+//         F0 *= albedo;
+// #endif
+
         vec3 F = F0 + pow5(1.0 - max(dot(wo, h), 0.0)) * (1.0 - F0);
 
         vec3 kS = F;
@@ -253,42 +258,15 @@ vec3 BSDF(vec3 wo, vec3 wi, vec3 N, float metalic, float alpha, vec3 albedo)
         vec3 diffuse = kD / PI;
 
         vec3 specular =
-            (F * G * D) /
+            (F * G) /
             max(0.001, 4.0 * max(dot(N, wo),  0.0) * max(dot(N, wi), 0.0));
 
-#ifdef DIFFUSE_ONLY
-        return (diffuse) * max(dot(N, wi), 0.0);
-#endif
-
-#ifdef SPECULAR_ONLY
-        return (specular) * max(dot(N, wi), 0.0);
-#endif
-
-#if !defined(DIFFUSE_ONLY) && !defined(SPECULAR_ONLY)
-        return (diffuse + specular) * max(dot(N, wi), 0.0);
+#if defined(DIFFUSE_ONLY) || defined(SPECULAR_ONLY)
+        return (do_specular ? specular : diffuse) * max(dot(N, wi), 0.0);
+#else
+        return (specular * D + diffuse) * max(dot(N, wi), 0.0);
 #endif
     }
-}
-
-vec3 brdf_ggx_oren_schlick(vec3 albedo, vec3 radiance, float roughness, float metalic, float subsurface, vec3 F, vec3 L, vec3 N, vec3 V)
-{
-	vec3 H = normalize(vec3(L + V));
-	float NDF = float(DistributionGGX(N, H, roughness));
-	float G = float(oren_nayer(V, L, N, roughness));
-
-	vec3 kD = vec3(float(1.0) - float(metalic));
-	
-#ifdef SUBSURFACE
-	float NdotL = min(1.0, float(max(0.0, dot(N, L)) + float(subsurface * 0.3)));                
-#else	
-	float NdotL = dot(N, L);                
-#endif	
-
-	vec3 numerator    = NDF * G * F;
-	float denominator = float(4.0) * max(NdotL, float(0.005)); // * max(float(dot(N, -V)), float(0.005));
-	vec3 specular     = clamp(numerator / denominator, vec3(0.0), vec3(10.0));
-	
-	return vec3(max(vec3(0.0), (kD * albedo / float(3.1415926) + specular) * radiance * NdotL));
 }
 
 float screen_space_shadows(vec3 view_pos, vec3 view_dir, float nseed)
@@ -401,7 +379,7 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
             sampleLODmanual(colortex3, skybox_uv, skybox_lod1).rgb,
             fract(skybox_lod));
 
-        image_based_lighting += BSDF(-view_dir, sample_dir, view_normal, mat.metalic, mat.roughness, mat.albedo) * mat.albedo * skybox_color / max(0.001, selectPdf);
+        image_based_lighting += BSDF(-view_dir, sample_dir, view_normal, mat.metalic, mat.roughness, mat.albedo, false) * mat.albedo * skybox_color / max(0.001, selectPdf);
     }
 
     image_based_lighting *= 1.0 / max(samples_taken, 0.01);
@@ -442,7 +420,7 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
     vec3 sun_radiance = shadow * texelFetch(colortex3, ivec2(viewWidth - 1, 0), 0).rgb;
 
     // FIXME: SSS
-    color += BSDF(-view_dir, shadowLightPosition * 0.01, view_normal, mat.metalic, mat.roughness, mat.albedo) * sun_radiance * mat.albedo;
+    color += BSDF(-view_dir, shadowLightPosition * 0.01, view_normal, mat.metalic, mat.roughness, mat.albedo, false) * sun_radiance * mat.albedo;
 
     float shadow_depth_diff = max(shadow_pos_linear.z - shadow_depth, 0.0);
 

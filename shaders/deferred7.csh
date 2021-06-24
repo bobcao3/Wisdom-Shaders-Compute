@@ -5,5 +5,5 @@
 #define SVGF
 
 #ifdef SVGF
-#include "/programs/post/specular_spatial.comp"
+#include "/programs/post/sspt_spatial.comp"
 #endif

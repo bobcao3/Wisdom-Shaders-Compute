@@ -82,7 +82,7 @@ void main() {
 
     vec4 shadow_view_pos = gl_ModelViewMatrix * input_pos;
 
-    if (mc_Entity.x != 0)
+    if (mc_Entity.x != 0 && gl_VertexID % 2 == 0)
     {
         vec4 world_pos = shadowModelViewInverse * shadow_view_pos;
 
@@ -98,7 +98,7 @@ void main() {
 
         uint flag = 0;
 
-        // [31: Transparent | 30: Opaque | 29: Emmisive | 28~24: Reserved | 23:0 Color]
+        // [31: Transparent | 30: Opaque | 29: Emmisive | 28~27: Reserved | 26~24: Priority | 23:0 Color]
 
         if (mc_Entity.x >= 29 && mc_Entity.x <= 33)
             flag |= (1 << 31);
@@ -107,9 +107,14 @@ void main() {
 
         if (mc_Entity.x >= 9200) flag |= (1 << 29);
 
+        uint priority = uint(sign(gl_Normal.y) + 1);
+
+        flag |= (priority & 0x3) << 24;
+
         flag |= packUnorm4x8(vec4(tileColor, 0.0)) & 0xFFFFFF;
 
-        imageStore(shadowcolorimg0, planar_pos, uvec4(flag, 0, 0, 0));
+        //imageStore(shadowcolorimg0, planar_pos, uvec4(flag, 0, 0, 0));
+        imageAtomicMax(shadowcolorimg0, planar_pos, flag);
 
         /*
 

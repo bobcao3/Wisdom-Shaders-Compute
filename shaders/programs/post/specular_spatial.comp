@@ -1,0 +1,138 @@
+#include "/libs/compat.glsl"
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+const vec2 workGroupsRender = vec2(0.5f, 0.5f);
+
+uniform sampler2D colortex4;
+uniform sampler2D colortex5;
+uniform sampler2D colortex6;
+uniform sampler2D colortex7;
+
+layout (r11f_g11f_b10f) uniform image2D colorimg5;
+
+float gaussian[] = float[] (
+    0.06136, 0.24477, 0.38774, 0.24477, 0.06136
+);
+
+uniform float viewWidth;
+uniform float viewHeight;
+
+int getIndex(ivec2 uv)
+{
+    return uv.y * int(gl_WorkGroupSize.x + 4) + uv.x;
+}
+
+shared lowp vec3 lds_normals[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
+shared lowp vec3 lds_colors[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
+// shared lowp vec3 lds_albedo[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
+// shared float lds_variance[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
+shared float lds_depth[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
+shared bool lds_valid[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
+
+uniform float near;
+uniform float far;
+
+float linearizeDepth(in float d) {
+    return (2 * near) / (far + near - (d * 2.0 - 1.0) * (far - near));
+}
+
+void load(ivec2 local_xy, ivec2 iuv)
+{
+    ivec2 sample_uv = clamp(iuv, ivec2(0), ivec2(floor(viewWidth * 0.5) - 1, floor(viewHeight * 0.5) - 1));
+
+    vec3 sample_normal = texelFetch(colortex7, sample_uv * 2, 0).rgb;
+    vec3 sample_albedo = texelFetch(colortex6, sample_uv * 2, 0).rgb;
+    vec3 sample_color = imageLoad(colorimg5, sample_uv).rgb;
+    // float sample_variance = imageLoad(colorimg5, sample_uv + ivec2(viewWidth * 0.5, 0.0)).r;
+
+    // lds_albedo[getIndex(local_xy + 2)] = sample_albedo;
+    lds_colors[getIndex(local_xy + 2)] = sample_color;
+    lds_normals[getIndex(local_xy + 2)] = sample_normal;
+    // lds_variance[getIndex(local_xy + 2)] = sample_variance;
+
+    float depth = texelFetch(colortex4, sample_uv, 0).r;
+    lds_valid[getIndex(local_xy + 2)] = depth < 1.0 && sample_uv == iuv;
+    lds_depth[getIndex(local_xy + 2)] = linearizeDepth(depth);
+}
+
+void main()
+{
+    ivec2 group_base = ivec2((gl_WorkGroupSize.xy * STRIDE) * (gl_WorkGroupID.xy / STRIDE) + (gl_WorkGroupID.xy % STRIDE));
+    ivec2 iuv = group_base + ivec2(gl_LocalInvocationID.xy * STRIDE);
+    ivec2 local_id = ivec2(gl_LocalInvocationID.xy) + 2;
+
+    // Load the padding
+    {
+        int index = int(gl_LocalInvocationIndex);
+        const int padded_width = int(gl_WorkGroupSize.x + 4);
+        const int local_size = int(gl_WorkGroupSize.x * gl_WorkGroupSize.y);
+        const int block_size = int((gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4));
+
+        ivec2 local_xy = ivec2((index % padded_width) - 2, (index / padded_width) - 2);
+        ivec2 pad_uv = group_base + local_xy * STRIDE;
+        load(local_xy, pad_uv);
+
+        if (gl_LocalInvocationIndex < block_size - local_size)
+        {
+            index += local_size;
+
+            ivec2 local_xy = ivec2((index % padded_width) - 2, (index / padded_width) - 2);
+            ivec2 pad_uv = group_base + local_xy * STRIDE;
+            load(local_xy, pad_uv);
+        }
+    }
+
+    memoryBarrierShared();
+    barrier();
+
+    if (!lds_valid[getIndex(local_id)]) return;
+
+    vec3 normal = lds_normals[getIndex(local_id)];
+
+    vec3 color = vec3(0.0);
+    float total_var = 0.0;
+    float weight = 0.0001;
+
+    vec3 center_color = lds_colors[getIndex(local_id)];
+
+    // float center_var = lds_variance[getIndex(local_id)];
+
+    float center_luma = dot(center_color, vec3(0.2126, 0.7152, 0.0722));
+
+    float center_depth = lds_depth[getIndex(local_id)];
+
+    // vec3 center_albedo = lds_albedo[getIndex(local_id)];
+
+    // Filter
+    for (int i = -2; i <= 2; i++)
+    {
+        for (int j = -2; j <= 2; j++)
+        {
+            ivec2 offset = ivec2(i, j);
+            vec3 sample_color = lds_colors[getIndex(local_id + offset)];
+
+            if (isnan(sample_color.r) || !lds_valid[getIndex(local_id + offset)]) continue;
+
+            vec3 sample_normal = lds_normals[getIndex(local_id + offset)];
+            // vec3 sample_albedo = lds_albedo[getIndex(local_id + offset)] - center_albedo;
+            float color_diff = abs(dot(sample_color, vec3(0.2126, 0.7152, 0.0722)) - center_luma);
+            // float sample_var = lds_variance[getIndex(local_id + offset)];
+            float sample_depth = lds_depth[getIndex(local_id + offset)];
+
+            float sample_weight = gaussian[i + 2] * gaussian[j + 2];
+            sample_weight *= pow(max(0.0, dot(normal, sample_normal)), 128.0);
+            // sample_weight *= exp(-color_diff / max(4.0 * sqrt(sample_var), 0.01));
+            // sample_weight *= exp(-dot(sample_albedo, sample_albedo) * 20.0);
+            sample_weight *= exp(-abs(sample_depth - center_depth) / max(0.1, center_depth) * 8);
+
+            color += sample_color * sample_weight;
+            // total_var += sample_var * pow2(sample_weight);
+            weight += sample_weight;
+        }
+    }
+
+    imageStore(colorimg5, iuv, vec4(color / weight, 0.0));
+    // imageStore(colorimg5, iuv + ivec2(viewWidth * 0.5, 0.0), vec4(total_var / pow2(weight)));
+
+}

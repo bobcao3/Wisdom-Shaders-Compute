@@ -28,7 +28,8 @@ const bool colortex9Clear = false;
 const bool colortex10Clear = false;
 const bool colortex12Clear = false;
 
-const vec4 shadowcolor0ClearColor = vec4(0.0);
+const vec4 shadowcolor0ClearColor = vec4(0.0, 0.0, 0.0, 0.0);
+const vec4 shadowcolor1ClearColor = vec4(0.0, 0.0, 0.0, 0.0);
 
 */
 
@@ -110,7 +111,7 @@ void main()
 #endif
 
     // if (iuv.x < 1024 && iuv.y < 1024)
-    //     color = vec3(texelFetch(shadowcolor1, iuv * 2, 0).rgb);
+    //     color = vec3(texelFetch(shadowcolor0, iuv * 2, 0).r >> 24);
 
     gl_FragColor = vec4(color, 1.0);
 }
