@@ -80,7 +80,7 @@ void main()
     gl_FragData[0] = albedo; // Albedo
     gl_FragData[1] = albedo; // Depth, Flag, Normal
     gl_FragData[2] = vec4(normal, flag); // Depth, Flag, Normal
-    gl_FragData[3] = vec4(lmcoord, 1.0, (229.0 / 255.0)); // F0, Smoothness
+    gl_FragData[3] = vec4(lmcoord, 1.0, 1.0); // F0, Smoothness
 }
 
 #endif

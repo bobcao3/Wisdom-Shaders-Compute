@@ -33,6 +33,13 @@ uniform usampler2D shadowcolor0;
 
 #define FIREFLY_FILTER
 
+// #define GI_NO_CLIP
+
+#ifdef GI_NO_CLIP
+uniform vec3 cameraPosition;
+uniform vec3 previousCameraPosition;
+#endif
+
 void main()
 {
     ivec2 iuv = ivec2(gl_FragCoord.xy) * 2;
@@ -66,6 +73,7 @@ void main()
 
     float view_z;
 
+#ifndef GI_NO_CLIP
     if (depth < 1.0)
     {
         vec3 proj_pos = getProjPos(uv, depth);
@@ -93,7 +101,7 @@ void main()
 #endif
 
         vec2 history_uv = uv + texelFetch(colortex1, iuv, 0).rg;
-        float weight = 0.04;
+        float weight = 0.06;
         
         if (history_uv.x < 0.0 || history_uv.y < 0.0 || history_uv.x > 1.0 || history_uv.y > 1.0) weight = 1.0;
 
@@ -160,6 +168,34 @@ void main()
         // }
 
     }
+#endif
+
+#ifdef GI_NO_CLIP
+    if (!squared)
+    {
+        if (
+            distance(gbufferModelView[0], gbufferPreviousModelView[0]) < 1e-5 &&
+            distance(gbufferModelView[1], gbufferPreviousModelView[1]) < 1e-5 &&
+            distance(gbufferModelView[2], gbufferPreviousModelView[2]) < 1e-5 &&
+            distance(gbufferModelView[3], gbufferPreviousModelView[3]) < 1e-5 &&
+            distance(gbufferProjection[0], gbufferPreviousProjection[0]) < 1e-5 &&
+            distance(gbufferProjection[1], gbufferPreviousProjection[1]) < 1e-5 &&
+            distance(gbufferProjection[2], gbufferPreviousProjection[2]) < 1e-5 &&
+            distance(gbufferProjection[3], gbufferPreviousProjection[3]) < 1e-5 &&
+            distance(cameraPosition, previousCameraPosition) < 1e-5
+        ) {
+            vec4 history = texelFetch(colortex12, iuv_orig, 0);
+            color = history.rgb * history.a + texelFetch(colortex5, iuv_orig, 0).rgb;
+            color = color / (history.a + 1.0);
+            view_z = history.a + 1.0;
+            temporal = color;
+        } else {
+            color = texelFetch(colortex5, iuv_orig, 0).rgb;
+            temporal = color;
+            view_z = 1.0;
+        }
+    }
+#endif
 
     gl_FragData[0] = vec4(color, 1.0);
     gl_FragData[1] = vec4(temporal, view_z);

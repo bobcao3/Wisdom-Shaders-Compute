@@ -62,9 +62,9 @@ void main()
         vec3 indirect = vec3(0.0);
         float weight = 0.0001;
 
-        for (int i = 0; i <= 1; i++)
+        for (int i = -1; i <= 1; i++)
         {
-            for (int j = 0; j <= 1; j++)
+            for (int j = -1; j <= 1; j++)
             {
                 vec3 sample_normal = texelFetch(colortex7, iuv + ivec2(i * 2, j * 2), 0).rgb;
                 float sample_depth = linearizeDepth(texelFetch(colortex4, (iuv / 2) + ivec2(i, j), 0).r);

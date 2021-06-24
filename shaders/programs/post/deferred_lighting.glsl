@@ -106,7 +106,7 @@ vec3 compute_lighting(ivec2 iuv, float depth)
 
     vec3 view_normal = mat3(gbufferModelView) * normal_flag_encoded.rgb;
     
-    color = getLighting(mat, view_normal, -normalize(view_pos), view_pos, world_pos, ao);
+    color = getLighting(mat, view_normal, normalize(view_pos), view_pos, world_pos, ao);
 #else
     color += starField(world_dir);
     color += smoothstep(0.9999, 0.99991, dot(world_sun_dir, world_dir)) * texelFetch(colortex3, ivec2(viewWidth - 1, 0), 0).rgb * 20.0;

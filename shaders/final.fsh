@@ -99,7 +99,7 @@ void main()
 
 #define SATURATION 0.4 // [-1.0 -0.8 -0.6 -0.4 -0.2 0.0 0.2 0.4 0.6 0.8 1.0]
 
-    color = (new_luma * 2.0) * pow(color, vec3(1.0 + SATURATION));
+    color = (new_luma) * pow(color, vec3(1.0 + SATURATION));
 
     color = ACESFitted(toGamma(color));
     // color = toHLG(reinhard(color, 1.0), 0.5);

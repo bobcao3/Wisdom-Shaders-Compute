@@ -149,7 +149,7 @@ void main()
     ivec2 halfscreen_offset = ivec2(viewWidth, viewHeight) >> 1;
 
 #ifdef RAY_GUIDING
-    weights[gl_LocalInvocationID.x][gl_LocalInvocationID.y] = texelFetch(colortex12, iuv_orig + halfscreen_offset, 0).r + 0.02;
+    weights[gl_LocalInvocationID.x][gl_LocalInvocationID.y] = texelFetch(colortex12, iuv_orig + halfscreen_offset, 0).r + (1.0 / 64.0);
 
     barrier();
     memoryBarrierShared();
@@ -201,7 +201,7 @@ void main()
 #ifdef SSPT
     if (depth < 1.0)
     {
-        z1 = z2 = z3 = z4 = uint((texelFetch(noisetex, iuv_orig & 0xFF, 0).r * 65535.0) * 1000) ^ uint(frameCounter * 11);
+        z1 = z2 = z3 = z4 = uint((texelFetch(noisetex, iuv_orig & 0xFF, 0).r * 65535.0) * 1000) ^ uint(frameCounter);
         getRand();
 
         vec3 proj_pos = getProjPos(uv, depth);
@@ -223,7 +223,7 @@ void main()
 
         vec2 lmcoord = lm_specular_encoded.rg;
 
-        float roughness = (1.0 - lm_specular_encoded.b);
+        float roughness = pow2(1.0 - lm_specular_encoded.b);
         float metalic = lm_specular_encoded.a;
 
         bool refine = roughness < 0.3;
@@ -251,29 +251,25 @@ void main()
 #endif
 
             vec3 sample_dir;
-            float glossy_threshold = clamp(roughness, 0.0, 1.0);
 
-            if (getRand() < glossy_threshold)
+            float lumaF0 = metalic < (229.5 / 255.0) ? getF0(metalic).r : 0.0;
+
+            if (getRand() < lumaF0)
             {
                 float pdf;
                 sample_dir = ImportanceSampleLambertian(rand2d, view_normal, pdf);
-
-                // selectPdf *= glossy_threshold;
-                // selectPdf *= pdf;
-            }
-            else
-            {
+                selectPdf *= pdf * lumaF0;
+            } else {
                 float pdf;
-                sample_dir = ImportanceSampleGGX(rand2d, view_normal, view_dir, roughness, pdf);
+                sample_dir = ImportanceSampleBeckmann(vec2(getRand(), getRand()), view_normal, view_dir, roughness, pdf);
+                selectPdf = pdf * (1.0 - lumaF0);
+            }
 
-                if (dot(sample_dir, view_normal) <= 0.0)
-                {
-                    // Bruh
-                    sample_dir = reflect(sample_dir, view_normal);
-                }
 
-                // selectPdf *= 1.0 - glossy_threshold;
-                // selectPdf *= pdf;
+            if (dot(sample_dir, view_normal) <= 0.0)
+            {
+                // Bruh
+                continue;
             }
             
             samples_taken++;
@@ -297,8 +293,8 @@ void main()
 
                 real_sampled_dir = normalize(hit_view_pos - view_pos);
 
-                if (abs(dot(real_sampled_dir, sample_dir)) > 0.7 && hit_proj_pos.z < 1.0)
-                    hit = true;
+                // if (abs(dot(real_sampled_dir, sample_dir)) > 0.8 && hit_proj_pos.z < 1.0)
+                //    hit = true;
             }
 
             vec3 world_sample_dir = mat3(gbufferModelViewInverse) * sample_dir;
@@ -328,13 +324,13 @@ void main()
                         vec3 _real_sampled_dir = normalize(hit_view_pos - view_pos);
 
                         if (
-                            abs(dot(_real_sampled_dir, sample_dir)) > 0.7 &&
+                            abs(dot(_real_sampled_dir, sample_dir)) > 0.8 &&
                             hit_proj_pos.z < 1.0 &&
                             (vox_data & (1 << 30)) > 0 &&
                             abs((old_z - hit_view_pos.z) / hit_view_pos.z) < 0.05
                         ) {
-                            vox_hit = false;
-                            real_sampled_dir = _real_sampled_dir;
+                        //    vox_hit = false;
+                        //    real_sampled_dir = _real_sampled_dir;
                         }
                     }
                 }
@@ -381,10 +377,10 @@ void main()
                         view_normal = mat3(gbufferModelView) * normal_flag_encoded.rgb;
                     }
 
-                    radiance = getLighting(mat, view_normal, -sample_dir, hit_view_pos, hit_wpos, ao);
+                    radiance = getLighting(mat, view_normal, sample_dir, hit_view_pos, hit_wpos, ao);
                 }
 
-                sample_rad = radiance / selectPdf;
+                sample_rad = radiance;
 
 #ifdef RAY_GUIDING
                 contributions[gl_LocalInvocationID.x][gl_LocalInvocationID.y][i] = dot(sample_rad, vec3(0.3, 0.6, 0.1));
@@ -394,7 +390,7 @@ void main()
             {
                 vec2 skybox_uv = project_skybox2uv(world_sample_dir);
 
-                float skybox_lod = pow(roughness, 0.25) * 6.0;
+                float skybox_lod = pow(roughness, 0.25) * 5.0;
 
                 int skybox_lod0 = int(floor(skybox_lod));
                 int skybox_lod1 = int(ceil(skybox_lod));
@@ -403,17 +399,16 @@ void main()
                     sampleLODmanual(colortex3, skybox_uv, skybox_lod1).rgb,
                     fract(skybox_lod));
 
-                sample_rad = skybox_color / selectPdf; //  * smoothstep(0.1, 1.0, lmcoord.y)
+                sample_rad = skybox_color; //  * smoothstep(0.1, 1.0, lmcoord.y)
 #ifdef RAY_GUIDING
                 contributions[gl_LocalInvocationID.x][gl_LocalInvocationID.y][i] = dot(sample_rad, vec3(0.3, 0.6, 0.1));
 #endif
             }
 
-            vec3 F = getF(metalic, roughness, dot(view_dir, view_normal), vec3(1.0));
-            color += sample_rad * F * oren_nayer(view_dir, sample_dir, view_normal, roughness;// / (4.0 * abs(dot(view_dir, view_normal)) * abs(dot(sample_dir, view_normal)));
+            color += BSDF(-view_dir, sample_dir, view_normal, metalic, roughness, albedo) * sample_rad / selectPdf;
         }
 
-        color /= (samples_taken);
+        // color /= max(0.001, samples_taken);
 
         if (isnan(color.r) || isnan(color.g) || isnan(color.b)) color = vec3(0.0);
         color = clamp(color, vec3(1e-5), vec3(1e4));
@@ -431,7 +426,7 @@ void main()
 
     if (gl_LocalInvocationID.x == 0 && gl_LocalInvocationID.y == 0)
     {
-        float normalize_sum = 0.001;
+        float normalize_max = 0.001;
         for (int i = 0; i < 8; i++)
         {
             for (int j = 0; j < 8; j++)
@@ -442,7 +437,7 @@ void main()
                     dir *= 8.0;
                     ivec2 iloc = clamp(ivec2(floor(dir)), ivec2(0), ivec2(7));
                     weights[iloc.x][iloc.y] += contributions[i][j][k];
-                    normalize_sum += contributions[i][j][k];
+                    normalize_max = max(normalize_max, contributions[i][j][k]);
                 }
             }
         }
@@ -452,8 +447,8 @@ void main()
             for (int j = 0; j < 8; j++)
             {
                 float last_contrib = texelFetch(colortex12, iuv_orig + halfscreen_offset + ivec2(i, j), 0).r;
-                float new_contrib = weights[i][j] / normalize_sum;
-                new_contrib = max(mix(last_contrib, new_contrib, 0.1), new_contrib);
+                float new_contrib = weights[i][j] / normalize_max;
+                new_contrib = max(last_contrib * 0.97, new_contrib);
 
                 imageStore(colorimg5, iuv_orig + halfscreen_offset + ivec2(i, j), vec4(new_contrib, 0.0, 0.0, 1.0));
             }
