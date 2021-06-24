@@ -1,6 +1,5 @@
 #include "/libs/compat.glsl"
 #include "/libs/noise.glsl"
-#include "/settings.glsl"
 
 VERTEX_INOUT VertexOut {
     vec4 color;

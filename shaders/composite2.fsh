@@ -25,17 +25,11 @@ uniform usampler2D shadowcolor0;
 #include "/libs/transform.glsl"
 #include "/libs/noise.glsl"
 #include "/libs/raytrace.glsl"
+#include "/libs/color.glslinc"
 
 #include "/configs.glsl"
 
 /* RENDERTARGETS: 5,12 */
-
-// #define GI_NO_CLIP
-
-#ifdef GI_NO_CLIP
-uniform vec3 cameraPosition;
-uniform vec3 previousCameraPosition;
-#endif
 
 #define FIREFLY_FILTER
 
@@ -95,25 +89,15 @@ void main()
         vec3 min_bound = min(min(min(s0, s1), min(s2, s3)), min(min(s4, s5), min(s6, s7)));
         vec3 max_bound = max(max(max(s0, s1), max(s2, s3)), max(max(s4, s5), max(s6, s7)));
         vec3 color_unclamped = color;
-        color = clamp(color, min_bound * 0.5 - 0.2, max_bound * 3.0 + 3.0);
+        color = clamp(color, min(min_bound * 0.5, min_bound - 0.2), max(max_bound * 2.0, max_bound + 1.0));
 #endif
 
         vec2 history_uv = uv + texelFetch(colortex1, iuv, 0).rg;
-        ivec2 history_iuv = ivec2((history_uv) * vec2(viewWidth, viewHeight) * 0.5);
-        float weight = 0.09;
+        float weight = 0.04;
         
         if (history_uv.x < 0.0 || history_uv.y < 0.0 || history_uv.x > 1.0 || history_uv.y > 1.0) weight = 1.0;
 
-        if (squared)
-        {
-            float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
-            color = vec3(luma, luma * luma, 1);
-            history_uv.x += 1.0;
-        }
-
-        // vec4 history = texture(colortex12, history_uv * 0.5);
-        // vec4 history = texelFetch(colortex12, ivec2((history_uv) * vec2(viewWidth, viewHeight) * 0.5), 0);
-        vec4 history = texelFetch(colortex12, history_iuv, 0);
+        vec4 history = texture(colortex12, history_uv * 0.5);
 
         if (isnan(history.x)) history = vec4(0.0);
 
@@ -122,45 +106,46 @@ void main()
         {
             weight = 1.0;
         }
-        else
-        {
-            weight *= 0.5;
-        }
 
-#ifndef GI_NO_CLIP
         if (squared)
         {
+            float x = luma(color);
+            
+            vec2 last_moments = texture(colortex12, vec2(history_uv.x + 1.0, history_uv.y) * 0.5).rg;
+            float ema_last = last_moments.x;
+            float emvar_last = last_moments.y;
+
+            float delta = x - ema_last;
+
+            float ema = ema_last + weight * delta;
+            float emvar = (1.0 - weight) * (emvar_last + weight * pow2(delta));
+
             if (weight > 0.9)
             {
-                color = vec3(0.0, 1.0, 1.0);
+                float x2 = 0.0;
+                float x = 0.0;
+                for (int i = -2; i <= 2; i++)
+                {
+                    for (int j = -2; j <= 2; j++)
+                    {
+                        vec3 s = texelFetch(colortex5, iuv_orig + ivec2(i, j), 0).rgb;
+                        float l = luma(s);
+                        x += l;
+                        x2 += l * l;
+                    }
+                }
+                ema = x * (1.0 / 25.0);
+                emvar = x2 * (1.0 / 25.0) - ema * ema;
             }
-            // else
-            // {
-            //     color += history.rgb;
-            //     if (color.b > 16.0) color *= 0.5;
-            // }
-            color = mix(history.rgb, color, weight);
+
+            temporal = vec3(ema, emvar, 0.0);
+            color = vec3(emvar);
         }
         else
         {
             color = mix(history.rgb, color, weight);
+            temporal = color;
         }
-#else
-        float history_length;
-        
-        color += history.rgb;
-
-        if (squared)
-        {
-            history_length = color.b;
-        }
-        else
-        {
-            history_length = texelFetch(colortex12, ivec2((history_uv + vec2(1.0, 0.0)) * vec2(viewWidth, viewHeight) * 0.5), 0).b;
-        }
-#endif
-
-        temporal = color;
 
 // #ifdef FIREFLY_FILTER
 //         if (!squared)
@@ -169,39 +154,12 @@ void main()
 //         }
 // #endif
 
-#ifndef GI_NO_CLIP
-        if (squared)
-        {
-            color = vec3(abs((color.g) - pow2(color.r)));
-        }
-#else
-        if (squared)
-        {
-            color = vec3(abs((color.g / history_length) - pow2(color.r / history_length)));
-        }
-        else
-        {
-            color = color / max(0.01, history_length);
-        }
-#endif
-    }
+        // if (squared)
+        // {
+        //     color = vec3(pow2(color.r - color.g));
+        // }
 
-#ifdef GI_NO_CLIP
-    if (
-        distance(cameraPosition, previousCameraPosition) > 1e-5 ||
-        distance(gbufferProjection[0], gbufferPreviousProjection[0]) > 1e-5 ||
-        distance(gbufferProjection[1], gbufferPreviousProjection[1]) > 1e-5 ||
-        distance(gbufferProjection[2], gbufferPreviousProjection[2]) > 1e-5 ||
-        distance(gbufferProjection[3], gbufferPreviousProjection[3]) > 1e-5 ||
-        distance(gbufferModelView[0], gbufferPreviousModelView[0]) > 1e-5 ||
-        distance(gbufferModelView[1], gbufferPreviousModelView[1]) > 1e-5 ||
-        distance(gbufferModelView[2], gbufferPreviousModelView[2]) > 1e-5 ||
-        distance(gbufferModelView[3], gbufferPreviousModelView[3]) > 1e-5
-    ) {
-        color = vec3(0.0);
-        temporal = vec3(0.0);
     }
-#endif
 
     gl_FragData[0] = vec4(color, 1.0);
     gl_FragData[1] = vec4(temporal, view_z);

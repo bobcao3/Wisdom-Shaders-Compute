@@ -29,7 +29,7 @@ bool intersect_bbox(in Ray r, vec3 minp, vec3 maxp, out float maxT)
     return false;
 }
 
-const int MAX_RAY_STEPS = 32;
+const int MAX_RAY_STEPS = 64;
 
 bool getVoxel(ivec3 volumePos, bool terminate)
 {

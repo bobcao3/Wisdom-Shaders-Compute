@@ -83,7 +83,7 @@ void main()
         vec3 world_normal = texelFetch(colortex7, iuv, 0).rgb;
         vec3 view_normal = normalize(mat3(gbufferModelView) * world_normal);
 
-        color.rgb *= 1.0 - pow(1.0 - abs(dot(normalize(view_pos), view_normal)), 3.0);
+        color.rgb *= max(1.0 - pow(1.0 - abs(dot(normalize(view_pos), view_normal)), 3.0), 0.01);
 
         imageStore(colorimg2, iuv, vec4(color, 1.0));
     }

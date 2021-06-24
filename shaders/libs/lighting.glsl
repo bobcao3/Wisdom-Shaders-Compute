@@ -15,7 +15,7 @@ float oren_nayer(in vec3 v, in vec3 l, in vec3 n, in float r) {
 }
 
 vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
-	return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow5(max(1.0 - cosTheta, 0.001));
+	return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow5(1.0 - abs(cosTheta));
 }
 
 vec3 fresnelSchlick(float cosTheta, vec3 F0) {
@@ -118,7 +118,7 @@ vec3 getF(float metalic, float roughness, float cosTheta, vec3 albedo)
 	vec3 Rs = (N2K2 - NcosTheta + cosTheta2) / (N2K2 + NcosTheta + cosTheta2);
 	vec3 Rp = (N2K2 * cosTheta2 - NcosTheta + 1.0) / (N2K2 * cosTheta2 + NcosTheta + 1.0);
 
-	return (Rs + Rp) * 0.5 * albedo;
+	return (Rs + Rp) * 0.5;
 }
 
 vec3 brdf_ggx_oren_schlick(vec3 albedo, vec3 radiance, float roughness, float metalic, float subsurface, vec3 F, vec3 L, vec3 N, vec3 V)

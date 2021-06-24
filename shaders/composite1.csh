@@ -212,9 +212,9 @@ void main()
 
         int lod = 3;
 
-        const float zThickness = 0.25;
+        const float zThickness = abs(view_pos.z) * 0.1; //0.25;
         const float stride = 2.0;
-        const float stride_multiplier = 1.3;
+        const float stride_multiplier = 1.35;
         
         vec3 world_normal = texelFetch(colortex7, iuv, 0).rgb;
         vec3 view_normal = normalize(mat3(gbufferModelView) * world_normal);
@@ -258,7 +258,8 @@ void main()
                 float pdf;
                 sample_dir = ImportanceSampleLambertian(rand2d, view_normal, pdf);
 
-                selectPdf *= glossy_threshold;
+                // selectPdf *= glossy_threshold;
+                // selectPdf *= pdf;
             }
             else
             {
@@ -271,7 +272,8 @@ void main()
                     sample_dir = reflect(sample_dir, view_normal);
                 }
 
-                selectPdf *= 1.0 - glossy_threshold;
+                // selectPdf *= 1.0 - glossy_threshold;
+                // selectPdf *= pdf;
             }
             
             samples_taken++;
@@ -338,6 +340,8 @@ void main()
                 }
             }
 
+            vec3 sample_rad;
+
             if (hit)
             {
                 //vec3 hit_color = texelFetch(colortex2, hit_pos, 0).rgb;
@@ -380,13 +384,10 @@ void main()
                     radiance = getLighting(mat, view_normal, -sample_dir, hit_view_pos, hit_wpos, ao);
                 }
 
-                vec3 Lin = radiance / selectPdf;
+                sample_rad = radiance / selectPdf;
 
-                // if (vox_hit) Lin = vec3(0.0);
-
-                color += Lin;
 #ifdef RAY_GUIDING
-                contributions[gl_LocalInvocationID.x][gl_LocalInvocationID.y][i] = dot(Lin, vec3(0.3, 0.6, 0.1));
+                contributions[gl_LocalInvocationID.x][gl_LocalInvocationID.y][i] = dot(sample_rad, vec3(0.3, 0.6, 0.1));
 #endif
             }
             else
@@ -402,15 +403,17 @@ void main()
                     sampleLODmanual(colortex3, skybox_uv, skybox_lod1).rgb,
                     fract(skybox_lod));
 
-                vec3 Lin = skybox_color / selectPdf; //  * smoothstep(0.1, 1.0, lmcoord.y)
-                color += Lin;
+                sample_rad = skybox_color / selectPdf; //  * smoothstep(0.1, 1.0, lmcoord.y)
 #ifdef RAY_GUIDING
-                contributions[gl_LocalInvocationID.x][gl_LocalInvocationID.y][i] = dot(Lin, vec3(0.3, 0.6, 0.1));
+                contributions[gl_LocalInvocationID.x][gl_LocalInvocationID.y][i] = dot(sample_rad, vec3(0.3, 0.6, 0.1));
 #endif
             }
+
+            vec3 F = getF(metalic, roughness, dot(view_dir, view_normal), vec3(1.0));
+            color += sample_rad * F * oren_nayer(view_dir, sample_dir, view_normal, roughness;// / (4.0 * abs(dot(view_dir, view_normal)) * abs(dot(sample_dir, view_normal)));
         }
 
-        color /= samples_taken;
+        color /= (samples_taken);
 
         if (isnan(color.r) || isnan(color.g) || isnan(color.b)) color = vec3(0.0);
         color = clamp(color, vec3(1e-5), vec3(1e4));
@@ -449,7 +452,8 @@ void main()
             for (int j = 0; j < 8; j++)
             {
                 float last_contrib = texelFetch(colortex12, iuv_orig + halfscreen_offset + ivec2(i, j), 0).r;
-                float new_contrib = max(last_contrib * 0.97, weights[i][j] / normalize_sum);
+                float new_contrib = weights[i][j] / normalize_sum;
+                new_contrib = max(mix(last_contrib, new_contrib, 0.1), new_contrib);
 
                 imageStore(colorimg5, iuv_orig + halfscreen_offset + ivec2(i, j), vec4(new_contrib, 0.0, 0.0, 1.0));
             }

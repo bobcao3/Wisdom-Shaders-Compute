@@ -12,7 +12,7 @@ vec4 toGamma(vec4 c) {
     return pow(c, vec4(invGamma));
 }
 
-// #define HIGH_COLOR_PRECISION
+#define HIGH_COLOR_PRECISION
 
 vec3 fromGamma(vec3 c) {
 #ifdef HIGH_COLOR_PRECISION
@@ -28,18 +28,6 @@ vec3 toGamma(vec3 c) {
 #else
     return sqrt(c);
 #endif
-}
-
-float luma(vec3 c) {
-    return dot(c, vec3(0.2126, 0.7152, 0.0722));
-}
-
-vec3 saturation(vec3 C, float s)
-{
-    float l = luma(C);
-    C /= l;
-    C = max(pow(C, vec3(1.0 + s)), vec3(0.0));
-    return C * l;
 }
 
 vec3 hsv2rgb(vec3 c)
@@ -70,6 +58,71 @@ vec3 rgb2hsv(vec3 rgb) {
  		hsv.x = fract(hsv.x / 6.);
  	}
  	return hsv;
+}
+
+vec3 reinhard(vec3 color, float exposure)
+{
+	color *= exposure/(1. + color / exposure);
+	return color;
+}
+
+const mat3 RGB_2_XYZ = (mat3(
+    0.4124564, 0.2126729, 0.0193339,
+    0.3575761, 0.7151522, 0.1191920,
+    0.1804375, 0.0721750, 0.9503041
+));
+
+const mat3 XYZ_2_RGB = (mat3(
+     3.2404542,-0.9692660, 0.0556434,
+    -1.5371385, 1.8760108,-0.2040259,
+    -0.4985314, 0.0415560, 1.0572252
+));
+
+const mat3 REC2020_2_XYZ = (mat3(
+     0.6370, 0.1446, 0.1689,
+     0.2627, 0.6780, 0.0593,
+     0.0000, 0.0281, 1.0610
+));
+
+float PQtransfer(float Fd)
+{
+    const float display_brightness = 350.0f;
+   
+    const float m1 = 2610.0f / 4096.0f * 0.25f;
+    const float m2 = 2523.0f / 4096.0f * 128.0f;
+    const float c3 = 2392.0f / 4006.0f * 32.0f;
+    const float c2 = 2413.0f / 3096.0f * 32.0f;
+    const float c1 = c3 - c2 + 1;
+
+    float Y = Fd / (display_brightness / 10000.0f);
+
+    return pow((c1 + c2 * pow(Y, m1)) / (1.0 + c3 * pow(Y, m1)), m2);
+}
+
+vec3 toHLG(vec3 rgb, float scale)
+{
+    vec3 rec2020 = transpose(REC2020_2_XYZ) * (RGB_2_XYZ) * rgb;
+
+    float L = dot(rec2020, vec3(0.2627, 0.6780, 0.0593));
+    rec2020 /= L;
+
+    rec2020.r = PQtransfer(rec2020.r);
+    rec2020.g = PQtransfer(rec2020.g);
+    rec2020.b = PQtransfer(rec2020.b);
+
+    return rec2020 * L / 4096.0;
+}
+
+float luma(vec3 c) {
+    return dot(c, vec3(0.2126, 0.7152, 0.0722));
+}
+
+vec3 saturation(vec3 C, float s)
+{
+    float l = luma(C);
+    C /= l;
+    C = max(pow(C, vec3(1.0 + s)), vec3(0.0));
+    return C * l;
 }
 
 float cubicHermite(float t, float p0, float p1, float m0, float m1)

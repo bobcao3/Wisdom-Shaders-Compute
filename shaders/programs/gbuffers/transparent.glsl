@@ -1,6 +1,5 @@
 #include "/libs/compat.glsl"
 #include "/libs/noise.glsl"
-#include "/settings.glsl"
 
 VERTEX_INOUT VertexOut {
     vec4 color;
@@ -81,7 +80,7 @@ void main()
     gl_FragData[0] = albedo; // Albedo
     gl_FragData[1] = albedo; // Depth, Flag, Normal
     gl_FragData[2] = vec4(normal, flag); // Depth, Flag, Normal
-    gl_FragData[3] = vec4(lmcoord, 1.0, 1.0); // F0, Smoothness
+    gl_FragData[3] = vec4(lmcoord, 1.0, (229.0 / 255.0)); // F0, Smoothness
 }
 
 #endif
@@ -108,6 +107,11 @@ void main()
     normal = mat3(gbufferModelViewInverse) * normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz);
 
     color.rgb = color.rgb * 0.6 + 0.4;
+
+    if (mc_Entity.y == 1.0)
+    {
+        color.rgb = vec3(1.0);
+    }
 
     uv = (gl_TextureMatrix[0] * gl_MultiTexCoord0).st;
 

@@ -124,7 +124,7 @@ void main()
             sample_weight *= pow(max(0.0, dot(normal, sample_normal)), 128.0);
             sample_weight *= exp(-color_diff / max(4.0 * sqrt(sample_var), 0.01));
             // sample_weight *= exp(-dot(sample_albedo, sample_albedo) * 20.0);
-            sample_weight *= exp(-abs(sample_depth - center_depth) / max(1.0, center_depth) * 8);
+            sample_weight *= exp(-abs(sample_depth - center_depth) / max(0.1, center_depth) * 8);
 
             color += sample_color * sample_weight;
             total_var += sample_var * pow2(sample_weight);
