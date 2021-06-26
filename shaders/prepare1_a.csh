@@ -36,10 +36,6 @@ void main()
 
             skybox = scatter(vec3(0.0, cameraPosition.y, 0.0), world_sun_dir, world_sun_dir, Ra, 0.9, false);
 
-            // skybox.rgb += vec3(dot(skybox.rgb, vec3(1.0)) * rainStrength2);
-
-            // skybox *= abs(world_sun_dir.y);
-
             skybox.rgb *= skybox.a * (1.0 - rainStrength2 * 0.97) * abs(world_sun_dir.y);
         } else {
             skybox = vec4(fromGamma(fogColor), 0.0);

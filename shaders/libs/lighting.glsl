@@ -430,7 +430,7 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
 
     if (mat.flag < 0.0)
     {
-        color = mat.albedo * 10.0;
+        color = mat.albedo * 2.0;
     }
 
     return color;

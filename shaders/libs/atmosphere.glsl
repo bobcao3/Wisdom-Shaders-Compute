@@ -238,6 +238,44 @@ vec4 scatter(vec3 o, vec3 d, vec3 Ds, float lmax, float nseed, bool cloud) {
 	return max(vec4(0.0), vec4(color, transmittance));
 }
 
+vec3 scatter_sun(vec3 o, vec3 Ds) {
+	const vec3 d = Ds;
+
+	float L = escape(o, d, Ra);
+
+	float phaseM, phaseR;
+	float phaseM_moon, phaseR_moon;
+
+	{
+		float mu = dot(d, Ds);
+		float opmu2 = 1. + mu*mu;
+		phaseR = .0596831 * opmu2;
+		phaseM = .1193662 * (1. - g2) * opmu2;
+		phaseM /= ((2. + g2) * pow1d5(1. + g2 - 2.*g*mu));		
+	}
+
+	{
+		float mu = dot(d, -Ds);
+		float opmu2 = 1. + mu*mu;
+		phaseR_moon = .0596831 * opmu2;
+		phaseM_moon = .1193662 * (1. - g2) * opmu2;
+		phaseM_moon /= ((2. + g2) * pow1d5(1. + g2 - 2.*g*mu));	
+	}
+
+	const vec2 depth = vec2(0.0);
+	const vec2 des = vec2(1.0);
+
+	vec3 R, M;
+	vec3 R_moon, M_moon;
+	inScatter(o, Ds, Ra, depth, des, 0.0, R, M);
+	inScatter(o, -Ds, Ra, depth, des, 0.0, R_moon, M_moon);
+
+	vec3 color = I * (1.0 - max(vec3(0.0), R) * bR * phaseR);
+	color += (0.02 * I) * (1.0 - max(vec3(0.0), R_moon) * bR * phaseR_moon);
+
+	return color;
+}
+
 float noisyStarField(vec3 dir)
 {
 	return max(0.0, hash(dir.xz * sqrt(dir.y)) - 0.995) * 20.0;

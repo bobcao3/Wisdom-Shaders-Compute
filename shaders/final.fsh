@@ -85,6 +85,37 @@ vec3 applyLUT(vec3 c)
 
 // #define APPLY_LUT
 
+// #define HISTOGRAM_NORMALIZATION
+
+#define HISTOGRAM_MEDIAN
+
+float getMedianLuma(float target, out int i) // Medium: target = 0.5
+{
+    i = 128;
+    int low = 0;
+    int high = 255;
+
+    for (int _k = 0; _k < 8; _k++)
+    {
+        float s = uintBitsToFloat(texelFetch(shadowcolor0, ivec2(i, 1), 0).r);
+
+        if (s > target)
+        {
+            high = i;
+        }
+        else
+        {
+            low = i;
+        }
+
+        i = low + ((high - low) >> 1);
+    }
+
+    float median_luma = exp((float(i) - histogram_log_zero) / histogram_log_scale);
+
+    return median_luma;
+}
+
 void main()
 {
     ivec2 iuv = ivec2(gl_FragCoord.st);
@@ -98,7 +129,27 @@ void main()
 
 #define SHARPEN_STRENGTH 0.3 // [0.1 0.2 0.3 0.4 0.5 0.6]
 
-    float new_luma = (pixel_luma - local_average_luma) * (1.0 + SHARPEN_STRENGTH) + local_average_luma;
+    float new_luma = clamp((pixel_luma - local_average_luma) * (1.0 + SHARPEN_STRENGTH) + local_average_luma, 0.0, 1e5);
+
+#ifdef HISTOGRAM_NORMALIZATION
+    // Histogram normalization
+    float Yin = clamp(log(new_luma) * histogram_log_scale + histogram_log_zero, 0.0, 255.0 - 1e-5);
+    float Yin_lower = floor(Yin);
+    float Yout_lower = uintBitsToFloat(texelFetch(shadowcolor0, ivec2(Yin_lower - 1, 1), 0).r);
+    float Yout_upper = uintBitsToFloat(texelFetch(shadowcolor0, ivec2(Yin_lower, 1), 0).r);
+
+    if (Yin_lower >= 255) Yout_upper = 1.0;
+    if (Yin_lower == 0) Yout_lower = 0.0;
+
+    float Yout = mix(Yout_lower, Yout_upper, Yin - Yin_lower);
+    new_luma = mix(new_luma, exp((Yout * 256.0 - histogram_log_zero) / 32.0), 0.5);
+#endif
+
+#ifdef HISTOGRAM_MEDIAN
+    int median_index;
+    float median = getMedianLuma(0.5, median_index);
+    new_luma = clamp(new_luma * (0.05 / median), new_luma * 0.1, new_luma * 10.0);
+#endif
 
 #define SATURATION 0.4 // [-1.0 -0.8 -0.6 -0.4 -0.2 0.0 0.2 0.4 0.6 0.8 1.0]
 
@@ -114,6 +165,21 @@ void main()
 
     // if (iuv.x < 1024 && iuv.y < 1024)
     //     color = vec3(texelFetch(shadowcolor0, iuv * 2, 0).r >> 24);
+
+    // if (iuv.x < viewWidth / 16 && iuv.y < viewHeight / 16)
+    //     color = texelFetch(colortex4, iuv * 16, 0).rrr * histogram_log_scale;
+
+    // if (iuv.x < 512 && iuv.y < 256)
+    // {
+    //     color = vec3(float( uintBitsToFloat(texelFetch(shadowcolor0, ivec2(iuv.x >> 2, 1), 0).r) * 512.0 < iuv.y));
+    //     if ((iuv.x >> 2) == median_index) color = vec3(1.0, 0.0, 0.0);
+    // }
+
+    if (iuv.x < 512 && iuv.y < 256)
+    {
+        color = vec3(float(texelFetch(shadowcolor0, ivec2(iuv.x >> 1, 0), 0).r) < iuv.y * 2);
+        if ((iuv.x >> 1) == median_index) color = vec3(1.0, 0.0, 0.0);
+    }
 
     gl_FragColor = vec4(color, 1.0);
 }
