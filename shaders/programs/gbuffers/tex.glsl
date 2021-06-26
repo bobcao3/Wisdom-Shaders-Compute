@@ -72,9 +72,14 @@ void main()
 
     vec4 spec = texture(specular, uv);
 
+#ifndef MC_TEXTURE_FORMAT_LAB_PBR
+    spec.g *= (229.0 / 255.0);
+    spec.r = sqrt(spec.r);
+#endif
+
     gl_FragData[0] = albedo; // Albedo
     gl_FragData[1] = vec4(normal, flag); // Depth, Flag, Normal
-    gl_FragData[2] = vec4(lmcoord, spec.rg); // F0, Smoothness
+    gl_FragData[2] = vec4(lmcoord, spec.rg);
 }
 
 #endif

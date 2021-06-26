@@ -1,6 +1,6 @@
 #version 450 compatibility
 
-#define STRIDE 1
+#define STRIDE 4
 
 #define SVGF
 

@@ -1,6 +1,85 @@
-#define SSPT_SAMPLES 20
+#define SSPT_SAMPLES 16
+
+// #define SSR_2D
 
 ivec2 raytrace(in vec3 vpos, in vec2 iuv, in vec3 dir, float stride, float stride_multiplier, float zThickness, inout int lod, bool refine) {
+
+#ifndef SSR_2D
+    float step_length = 0.1 * abs(vpos.z);
+    float start_bias = 0.1;
+
+    vec3 vpos_step = vpos + dir * start_bias;
+    vec3 vpos_sample = vpos_step;
+    
+    ivec2 hit_iuv = ivec2(-1);
+
+    float last_z = vpos.z;
+
+    float dither = getRand();
+
+    for (int i = 0; i < SSPT_SAMPLES; i++)
+    {
+        vpos_sample = vpos_step + dither * step_length * dir;
+
+        vec3 proj_pos_sample = view2proj(vpos_sample);
+        vec2 uv_sample = proj_pos_sample.st * 0.5 + 0.5;
+        
+        if (uv_sample.x < 0.0 || uv_sample.x > 1.0 || uv_sample.y < 0.0 || uv_sample.y > 1.0) break;
+
+        ivec2 iuv_sample = ivec2(uv_sample * vec2(viewWidth, viewHeight) * 0.5);
+
+        float depth_sample = texelFetch(colortex4, iuv_sample, 0).r;
+        float viewz_sample = proj2view(getProjPos(ivec2(iuv_sample), depth_sample)).z;
+
+        if (viewz_sample >= vpos_sample.z && viewz_sample < last_z + step_length)
+        {
+            hit_iuv = iuv_sample * 2;
+            break;
+        }
+
+        last_z = viewz_sample;
+
+        step_length *= 1.25;
+        vpos_step += dir * step_length;
+    }
+
+    if (hit_iuv != ivec2(-1))
+    {
+        step_length *= -0.5;
+
+        float viewz_sample;
+
+        for (int i = 0; i < 4; i++)
+        {
+            vpos_sample += dir * step_length;
+
+            vec3 proj_pos_sample = view2proj(vpos_sample);
+            vec2 uv_sample = proj_pos_sample.st * 0.5 + 0.5;
+
+            ivec2 iuv_sample = ivec2(uv_sample * vec2(viewWidth, viewHeight) * 0.5);
+            hit_iuv = iuv_sample * 2;
+
+            float depth_sample = texelFetch(colortex4, iuv_sample, 0).r;
+            viewz_sample = proj2view(getProjPos(ivec2(iuv_sample), depth_sample)).z;
+
+            if (viewz_sample > vpos_sample.z)
+            {
+                step_length *= 0.5;
+            }
+            else
+            {
+                step_length *= -0.5;
+            }
+        }
+
+        if (abs(viewz_sample - vpos_sample.z) > abs(vpos_sample.z) * 0.1) hit_iuv = ivec2(-1);
+    }
+
+    return hit_iuv;
+
+#endif
+
+#ifdef SSR_2D
     float rayLength = clamp(-vpos.z, 0.1, 16.0);
 
     vec3 vpos_target = vpos + dir * rayLength;
@@ -118,4 +197,5 @@ ivec2 raytrace(in vec3 vpos, in vec2 iuv, in vec3 dir, float stride, float strid
     }
 
     return hit;
+#endif
 }

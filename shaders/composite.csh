@@ -35,6 +35,9 @@ uniform sampler2D depthtex1;
 
 uniform vec3 sunPosition;
 
+#define TRANSPARENT_BLURRING
+
+#ifdef TRANSPARENT_BLURRING
 void main()
 {
     ivec2 iuv = ivec2(gl_GlobalInvocationID.xy);
@@ -94,3 +97,4 @@ void main()
         imageStore(colorimg2, iuv, vec4(texelFetch(INPUT_TEX, iuv, 0).rgb, 1.0));
     }
 }
+#endif

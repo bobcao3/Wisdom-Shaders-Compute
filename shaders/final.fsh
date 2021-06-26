@@ -18,7 +18,8 @@ const int colortex8Format = RGBA8; // Specular
 const int colortex9Format = R16F; // AO temporal
 const int colortex10Format = RGBA16F; // Color temporal (R11F_G11F_B10F for gameplay)
 const int colortex11Format = RGBA16F; // Color temporal
-const int colortex12Format = RGBA32F; // SSPT temporal
+const int colortex12Format = RGBA16F; // SSPT temporal
+const int colortex13Format = RGBA16F; // SSPT temporal
 
 const int shadowcolor0Format = R32UI;
 const int shadowcolor1Format = RG32F;
@@ -27,6 +28,7 @@ const bool colortex3Clear = false;
 const bool colortex9Clear = false;
 const bool colortex10Clear = false;
 const bool colortex12Clear = false;
+const bool colortex13Clear = false;
 
 const vec4 shadowcolor0ClearColor = vec4(0.0, 0.0, 0.0, 0.0);
 const vec4 shadowcolor1ClearColor = vec4(0.0, 0.0, 0.0, 0.0);

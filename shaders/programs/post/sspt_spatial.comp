@@ -122,7 +122,7 @@ void main()
 
             float sample_weight = gaussian[i + 2] * gaussian[j + 2];
             sample_weight *= pow(max(0.0, dot(normal, sample_normal)), 128.0);
-            sample_weight *= exp(-color_diff / max(4.0 * sqrt(sample_var), 0.01));
+            sample_weight *= exp(-color_diff / max(2.0 * sqrt(sample_var), 0.01));
             // sample_weight *= exp(-dot(sample_albedo, sample_albedo) * 20.0);
             sample_weight *= exp(-abs(sample_depth - center_depth) / max(0.1, center_depth) * 8);
 

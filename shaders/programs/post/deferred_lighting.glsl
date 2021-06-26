@@ -96,7 +96,7 @@ vec3 compute_lighting(ivec2 iuv, float depth)
     Material mat;
     mat.albedo = albedo;
     mat.lmcoord = lm_specular_encoded.rg;
-    mat.roughness = (1.0 - lm_specular_encoded.b);
+    mat.roughness = pow2(1.0 - lm_specular_encoded.b);
     mat.metalic = lm_specular_encoded.a;
     mat.flag = normal_flag_encoded.a;
 

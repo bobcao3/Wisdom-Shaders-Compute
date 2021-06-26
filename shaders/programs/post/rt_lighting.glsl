@@ -133,9 +133,13 @@ float getSelectionPDF(int i, int j)
 
 bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir, vec3 world_pos, vec3 world_normal, bool refine, float vox_lmcoord_approx, out Material mat, out vec3 hit_view_pos, out vec3 hit_wpos, out ivec2 hit_iuv)
 {
+// #if !defined(SPECULAR_PT) && defined(SPECULAR_ONLY)
+//     return false;
+// #endif
+
     // SSR stuff
     int lod = 3;
-    const float zThickness = abs(view_pos.z) * 0.1; //0.25;
+    const float zThickness = abs(view_pos.z) * 0.1;
     const float stride = 2.0;
     const float stride_multiplier = 1.35;
 
@@ -311,7 +315,11 @@ void main()
 #ifdef SSPT
     if (depth < 1.0)
     {
-        z1 = z2 = z3 = z4 = uint((texelFetch(noisetex, iuv_orig & 0xFF, 0).r * 65535.0) * 1000) ^ uint(11 * frameCounter);
+// #ifdef SPECULAR_ONLY
+//         z1 = z2 = z3 = z4 = uint((texelFetch(noisetex, iuv_orig & 0xFF, 0).r * 65535.0));
+// #else
+        z1 = z2 = z3 = z4 = uint((texelFetch(noisetex, iuv_orig & 0xFF, 0).r * 65535.0) * 1000) ^ uint(frameCounter);
+// #endif
         getRand();
 
         vec3 proj_pos = getProjPos(uv, depth);
@@ -361,13 +369,14 @@ void main()
 
 #ifdef DIFFUSE_ONLY
             if (metalic > (229.5 / 255.0)) continue;
-            sample_dir = ImportanceSampleLambertian(rand2d, view_normal, pdf);
+            sample_dir = mat3(gbufferModelView) * ImportanceSampleLambertian(rand2d, world_normal, pdf);
             selectPdf *= pdf;
 #endif
 
 #ifdef SPECULAR_ONLY
-            if (roughness > 0.4) continue;
+            if (roughness > 0.6) continue;
             sample_dir = ImportanceSampleBeckmann(rand2d, view_normal, view_dir, roughness, pdf);
+            // selectPdf *= pdf;
 #endif
 
 
@@ -419,7 +428,18 @@ void main()
 #else
             const bool do_specular = false;
 #endif
-            sample_rad = BSDF(-view_dir, sample_dir, view_normal, metalic, roughness, albedo, do_specular) * sample_rad / selectPdf;
+            vec3 _kd;
+
+#ifdef SPLIT_SUM
+            sample_rad = sample_rad / selectPdf;
+#else
+            sample_rad = BSDF(-view_dir, sample_dir, view_normal, metalic, roughness, albedo, do_specular, _kd) * sample_rad / selectPdf;
+#endif
+
+#ifdef DIFFUSE_ONLY
+            sample_rad /= _kd + 1e-5;
+#endif
+
             color += sample_rad;
 
 #ifdef RAY_GUIDING

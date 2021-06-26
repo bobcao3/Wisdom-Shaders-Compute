@@ -223,7 +223,7 @@ vec3 getF0(float metalic)
     return vec3(1.0 - metalic_generated);
 }
 
-vec3 BSDF(vec3 wo, vec3 wi, vec3 N, float metalic, float alpha, vec3 albedo, bool do_specular)
+vec3 BSDF(vec3 wo, vec3 wi, vec3 N, float metalic, float alpha, vec3 albedo, bool do_specular, out vec3 kD)
 {
     vec3 h = normalize(wo + wi);
 
@@ -252,19 +252,17 @@ vec3 BSDF(vec3 wo, vec3 wi, vec3 N, float metalic, float alpha, vec3 albedo, boo
         vec3 F = F0 + pow5(1.0 - max(dot(wo, h), 0.0)) * (1.0 - F0);
 
         vec3 kS = F;
-        vec3 kD = 1.0 - kS;
+        kD = 1.0 - kS;
         kD *= 1.0 - F0.r;
 
         vec3 diffuse = kD / PI;
 
-        vec3 specular =
-            (F * G) /
-            max(0.001, 4.0 * max(dot(N, wo),  0.0) * max(dot(N, wi), 0.0));
+        float specular = G / max(0.001, 4.0 * max(dot(N, wo),  0.0));
 
 #if defined(DIFFUSE_ONLY) || defined(SPECULAR_ONLY)
-        return (do_specular ? specular : diffuse) * max(dot(N, wi), 0.0);
+        return do_specular ? specular * F : diffuse;
 #else
-        return (specular * D + diffuse) * max(dot(N, wi), 0.0);
+        return specular * D * F + diffuse;
 #endif
     }
 }
@@ -379,7 +377,8 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
             sampleLODmanual(colortex3, skybox_uv, skybox_lod1).rgb,
             fract(skybox_lod));
 
-        image_based_lighting += BSDF(-view_dir, sample_dir, view_normal, mat.metalic, mat.roughness, mat.albedo, false) * mat.albedo * skybox_color / max(0.001, selectPdf);
+        vec3 _kd;
+        image_based_lighting += BSDF(-view_dir, sample_dir, view_normal, mat.metalic, mat.roughness, mat.albedo, false, _kd) * mat.albedo * skybox_color / max(0.001, selectPdf);
     }
 
     image_based_lighting *= 1.0 / max(samples_taken, 0.01);
@@ -392,13 +391,13 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
     //  Block-light
     // --------------------------------------------------------------------
 
-#ifdef SSPT
-    const vec3 blocklight_color = vec3(0.1, 0.08, 0.06);
-#else
+// #ifdef SSPT
+//     const vec3 blocklight_color = vec3(0.1, 0.08, 0.06);
+// #else
     const vec3 blocklight_color = vec3(0.3, 0.2, 0.1);
-#endif
+// #endif
     
-    // color += mat.albedo * max(1.0 / (pow2(max(0.95 - mat.lmcoord.x, 0.0) * 6.0) + 1.0) - 0.05, 0.0) * blocklight_color * ao;
+    color += smoothstep(float(128) * 0.7, float(128), length(view_pos)) * mat.albedo * max(1.0 / (pow2(max(0.95 - mat.lmcoord.x, 0.0) * 6.0) + 1.0) - 0.05, 0.0) * blocklight_color * ao;
 
     // --------------------------------------------------------------------
     //  Directional
@@ -420,7 +419,8 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
     vec3 sun_radiance = shadow * texelFetch(colortex3, ivec2(viewWidth - 1, 0), 0).rgb;
 
     // FIXME: SSS
-    color += BSDF(-view_dir, shadowLightPosition * 0.01, view_normal, mat.metalic, mat.roughness, mat.albedo, false) * sun_radiance * mat.albedo;
+    vec3 _kd;
+    color += BSDF(-view_dir, shadowLightPosition * 0.01, view_normal, mat.metalic, mat.roughness, mat.albedo, false, _kd) * sun_radiance * mat.albedo;
 
     float shadow_depth_diff = max(shadow_pos_linear.z - shadow_depth, 0.0);
 

@@ -18,8 +18,7 @@ uniform sampler2D colortex7;
 uniform sampler2D colortex8;
 uniform sampler2D colortex9;
 uniform sampler2D colortex11;
-uniform sampler2D colortex12;
-uniform sampler2D colortex15;
+uniform sampler2D colortex13;
 
 uniform usampler2D shadowcolor0;
 
@@ -30,7 +29,7 @@ uniform usampler2D shadowcolor0;
 
 #include "/configs.glsl"
 
-/* RENDERTARGETS: 5,9,12 */
+/* RENDERTARGETS: 5,13 */
 
 #define FIREFLY_FILTER
 
@@ -48,17 +47,6 @@ void main()
     ivec2 iuv = ivec2(gl_FragCoord.xy) * 2;
     ivec2 iuv_orig = ivec2(gl_FragCoord.xy);
     vec2 uv = (vec2(iuv) + 1.0) * invWidthHeight;
-
-    if (uv.y > 1.0)
-    {
-        if (uv.x > 1.0)
-        {
-            vec4 v = texelFetch(colortex5, iuv_orig, 0);
-            gl_FragData[0] = v;
-            gl_FragData[2] = v;
-        }
-        return;
-    }
 
     bool squared = false;
     if (uv.x > 1.0)
@@ -108,8 +96,8 @@ void main()
         
         if (history_uv.x < 0.0 || history_uv.y < 0.0 || history_uv.x > 1.0 || history_uv.y > 1.0) weight = 1.0;
 
-        vec4 history = texture(colortex12, history_uv * 0.5);
-        history_length = texture(colortex9, history_uv * 0.5).r;
+        vec4 history = texture(colortex13, history_uv * 0.5);
+        history_length = clamp(texture(colortex9, history_uv * 0.5).r, 1.0, 9.0);
 
         if (isnan(history.x)) history = vec4(0.0);
 
@@ -119,7 +107,7 @@ void main()
             weight = 1.0;
         }
 
-        history_length = clamp((weight > 0.9) ? 1.0 : history_length + 1.0, 0.0, float(MAX_SVGF_TEMPORAL_LENGTH));
+        // history_length = clamp((weight > 0.9) ? 1.0 : history_length + 1.0, 0.0, float(MAX_SVGF_TEMPORAL_LENGTH));
 
         weight = 1.0 / history_length;
 
@@ -127,7 +115,7 @@ void main()
         {
             float x = luma(color);
             
-            vec2 last_moments = texture(colortex12, vec2(history_uv.x + 1.0, history_uv.y) * 0.5).rg;
+            vec2 last_moments = texture(colortex13, vec2(history_uv.x + 1.0, history_uv.y) * 0.5).rg;
             float ema_last = last_moments.x;
             float ema2_last = last_moments.y;
 
@@ -197,7 +185,7 @@ void main()
             distance(gbufferProjection[3], gbufferPreviousProjection[3]) < 1e-5 &&
             distance(cameraPosition, previousCameraPosition) < 1e-5
         ) {
-            vec4 history = texelFetch(colortex12, iuv_orig, 0);
+            vec4 history = texelFetch(colortex13, iuv_orig, 0);
             color = history.rgb * history.a + texelFetch(colortex5, iuv_orig, 0).rgb;
             color = color / (history.a + 1.0);
             view_z = history.a + 1.0;
@@ -211,6 +199,5 @@ void main()
 #endif
 
     gl_FragData[0] = vec4(color, 1.0);
-    gl_FragData[1] = vec4(history_length, 0.0, 0.0, 1.0);    
-    gl_FragData[2] = vec4(temporal, view_z);
+    gl_FragData[1] = vec4(temporal, view_z);
 }
