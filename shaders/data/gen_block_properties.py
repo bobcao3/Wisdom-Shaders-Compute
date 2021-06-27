@@ -2,7 +2,8 @@ shape_cube = 0
 shape_bottom_slab = 1
 shape_top_slab = 2
 shape_sphere = 3
-shape_transparent = 4
+shape_transparent = 4 # No interaction with the ray
+shape_translucent = 5 # Color gets tinted
 
 emissives = ["lantern", "lava", "fire", "torch", "glow"]
 

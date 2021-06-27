@@ -47,12 +47,6 @@ void main()
 
 #ifdef USE_AF
     albedo.a = textureLod(tex, uv, lod).a;
-
-    if (albedo.a < 0.05)
-    {
-        gl_FragData[0] = vec4(0.0);
-        return;
-    }
     
     vec2 rect_size = abs(bound_uv - miduv);
     
@@ -75,12 +69,16 @@ void main()
     
     albedo.rgb = fromGamma(albedo.rgb);
 
-    if (albedo.a < 0.1) discard;
+    if (albedo.a < 0.1)
+    {
+        albedo.rgb = vec3(1.0);
+        albedo.a = 0.4;
+    }
 
     gl_FragData[0] = albedo; // Albedo
     gl_FragData[1] = albedo; // Depth, Flag, Normal
     gl_FragData[2] = vec4(normal, flag); // Depth, Flag, Normal
-    gl_FragData[3] = vec4(lmcoord, 1.0, 1.0); // F0, Smoothness
+    gl_FragData[3] = vec4(lmcoord, 1.0, 0.04); // F0, Smoothness
 }
 
 #endif
