@@ -11,7 +11,7 @@ uniform sampler2D colortex7;
 
 layout (r11f_g11f_b10f) uniform image2D colorimg5;
 
-float gaussian[] = float[] (
+float16_t gaussian[] = float16_t[] (
     0.06136, 0.24477, 0.38774, 0.24477, 0.06136
 );
 
@@ -23,10 +23,10 @@ int getIndex(ivec2 uv)
     return uv.y * int(gl_WorkGroupSize.x + 4) + uv.x;
 }
 
-shared lowp vec3 lds_normals[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
-shared lowp vec3 lds_colors[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
+shared f16vec3 lds_normals[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
+shared f16vec3 lds_colors[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
 // shared lowp vec3 lds_albedo[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
-shared float lds_variance[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
+shared float16_t lds_variance[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
 shared float lds_depth[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
 shared bool lds_valid[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
 
@@ -41,10 +41,10 @@ void load(ivec2 local_xy, ivec2 iuv)
 {
     ivec2 sample_uv = clamp(iuv, ivec2(0), ivec2(floor(viewWidth * 0.5) - 1, floor(viewHeight * 0.5) - 1));
 
-    vec3 sample_normal = texelFetch(colortex7, sample_uv * 2, 0).rgb;
-    vec3 sample_albedo = texelFetch(colortex6, sample_uv * 2, 0).rgb;
-    vec3 sample_color = imageLoad(colorimg5, sample_uv).rgb;
-    float sample_variance = imageLoad(colorimg5, sample_uv + ivec2(viewWidth * 0.5, 0.0)).r;
+    f16vec3 sample_normal = f16vec3(texelFetch(colortex7, sample_uv * 2, 0).rgb);
+    // f16vec3 sample_albedo = texelFetch(colortex6, sample_uv * 2, 0).rgb;
+    f16vec3 sample_color = f16vec3(imageLoad(colorimg5, sample_uv).rgb);
+    float16_t sample_variance = float16_t(sqrt(imageLoad(colorimg5, sample_uv + ivec2(viewWidth * 0.5, 0.0)).r));
 
     // lds_albedo[getIndex(local_xy + 2)] = sample_albedo;
     lds_colors[getIndex(local_xy + 2)] = sample_color;
@@ -88,17 +88,15 @@ void main()
 
     if (!lds_valid[getIndex(local_id)]) return;
 
-    vec3 normal = lds_normals[getIndex(local_id)];
+    f16vec3 normal = lds_normals[getIndex(local_id)];
 
-    vec3 color = vec3(0.0);
-    float total_var = 0.0;
-    float weight = 0.0001;
+    f16vec3 color = f16vec3(0.0);
+    float16_t total_var = 0.0;
+    float16_t weight = 0.0001;
 
-    vec3 center_color = lds_colors[getIndex(local_id)];
+    f16vec3 center_color = lds_colors[getIndex(local_id)];
 
-    float center_var = lds_variance[getIndex(local_id)];
-
-    float center_luma = dot(center_color, vec3(0.2126, 0.7152, 0.0722));
+    float16_t center_luma = dot(center_color, f16vec3(0.2126, 0.7152, 0.0722));
 
     float center_depth = lds_depth[getIndex(local_id)];
 
@@ -110,21 +108,21 @@ void main()
         for (int j = -2; j <= 2; j++)
         {
             ivec2 offset = ivec2(i, j);
-            vec3 sample_color = lds_colors[getIndex(local_id + offset)];
+            f16vec3 sample_color = lds_colors[getIndex(local_id + offset)];
 
             if (isnan(sample_color.r) || !lds_valid[getIndex(local_id + offset)]) continue;
 
-            vec3 sample_normal = lds_normals[getIndex(local_id + offset)];
+            f16vec3 sample_normal = lds_normals[getIndex(local_id + offset)];
             // vec3 sample_albedo = lds_albedo[getIndex(local_id + offset)] - center_albedo;
-            float color_diff = abs(dot(sample_color, vec3(0.2126, 0.7152, 0.0722)) - center_luma);
-            float sample_var = lds_variance[getIndex(local_id + offset)];
+            float16_t color_diff = abs(dot(sample_color, f16vec3(0.2126, 0.7152, 0.0722)) - center_luma);
+            float16_t sample_var = lds_variance[getIndex(local_id + offset)];
             float sample_depth = lds_depth[getIndex(local_id + offset)];
 
-            float sample_weight = gaussian[i + 2] * gaussian[j + 2];
-            sample_weight *= pow(max(0.0, dot(normal, sample_normal)), 128.0);
-            sample_weight *= exp(-color_diff / max(2.0 * sqrt(sample_var), 0.01));
+            float16_t sample_weight = gaussian[i + 2] * gaussian[j + 2];
+            sample_weight *= pow(max(float16_t(0.0), dot(normal, sample_normal)), float16_t(128.0));
+            sample_weight *= exp(-color_diff / max(2.0 * sample_var, 0.01));
             // sample_weight *= exp(-dot(sample_albedo, sample_albedo) * 20.0);
-            sample_weight *= exp(-abs(sample_depth - center_depth) / max(0.03, center_depth) * 8);
+            sample_weight *= exp(float16_t(-abs(sample_depth - center_depth) / max(0.03, center_depth) * 8.0));
 
             color += sample_color * sample_weight;
             total_var += sample_var * pow2(sample_weight);

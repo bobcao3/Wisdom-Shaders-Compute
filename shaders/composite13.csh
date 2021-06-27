@@ -11,7 +11,7 @@ uniform sampler2D colortex2;
 
 const vec2 workGroupsRender = vec2(1.0f, 1.0f);
 
-shared float luminance[256];
+shared float16_t luminance[256];
 
 uniform float viewWidth;
 uniform float viewHeight;
@@ -22,9 +22,9 @@ void main()
 {
     ivec2 iuv = ivec2(gl_GlobalInvocationID.xy);
 
-    vec3 color = texelFetch(colortex2, iuv, 0).rgb;
+    f16vec3 color = f16vec3(texelFetch(colortex2, iuv, 0).rgb);
 
-    float L = max(max(color.r, color.g), color.b);
+    float16_t L = max(max(color.r, color.g), color.b);
 
     luminance[gl_LocalInvocationIndex] = L;
 
@@ -42,5 +42,5 @@ void main()
         luminance[gl_LocalInvocationIndex] += luminance[gl_LocalInvocationIndex + (stride >> 1)];
     }
 
-    imageStore(colorimg4, iuv, vec4(luminance[0] / 256.0, 0, 0, 1));
+    imageStore(colorimg4, iuv, vec4(luminance[0] / float16_t(256.0), 0, 0, 1));
 }

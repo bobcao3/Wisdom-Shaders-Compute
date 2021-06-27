@@ -8,8 +8,8 @@ const ivec3 workGroups = ivec3(1, 1, 1);
 
 layout (r32ui) uniform uimage2D shadowcolorimg0;
 
-shared float pdf[256];
-shared float cdf[256];
+shared float16_t pdf[256];
+shared float16_t cdf[256];
 
 #include "/libs/color.glslinc"
 
@@ -19,14 +19,14 @@ shared float cdf[256];
 
 void main()
 {
-    pdf[gl_LocalInvocationIndex] = imageLoad(shadowcolorimg0, ivec2(gl_LocalInvocationIndex, 0)).r;
+    pdf[gl_LocalInvocationIndex] = float16_t(imageLoad(shadowcolorimg0, ivec2(gl_LocalInvocationIndex, 0)).r);
 
     barrier();
     memoryBarrierShared();
 
     if (gl_LocalInvocationIndex == 0)
     {
-        float sum = 0.0;
+        float16_t sum = 0.0;
         for (int i = 0; i < 256; i++)
         {
             sum += pdf[i];
@@ -38,7 +38,7 @@ void main()
 #ifdef HISTOGRAM_MEDIAN
             cdf[i] = cdf[i] / sum;
 #else
-            cdf[i] = 0.5 * (cdf[i] / sum + float(i + 1) / 256.0);
+            cdf[i] = 0.5 * (cdf[i] / sum + float16_t(i + 1) / 256.0);
 #endif
         }        
     }
@@ -46,7 +46,7 @@ void main()
     barrier();
     memoryBarrierShared();
 
-    uint encoded = floatBitsToUint(cdf[gl_LocalInvocationIndex]);
+    uint encoded = floatBitsToUint(float(cdf[gl_LocalInvocationIndex]));
 
     imageStore(shadowcolorimg0, ivec2(gl_LocalInvocationIndex, 1), uvec4(encoded));
 }

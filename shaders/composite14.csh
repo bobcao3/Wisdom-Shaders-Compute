@@ -22,9 +22,9 @@ void main()
 
     if (iuv.x >= viewWidth || iuv.y >= viewHeight) return;
 
-    float L = texelFetch(colortex4, iuv, 0).r;
+    float16_t L = float16_t(texelFetch(colortex4, iuv, 0).r);
 
-    int bin = clamp(int(log(L) * histogram_log_scale + histogram_log_zero), 0, 255);
+    int bin = clamp(int(log(L) * float16_t(histogram_log_scale) + float16_t(histogram_log_zero)), 0, 255);
 
     imageAtomicAdd(shadowcolorimg0, ivec2(bin, 0), 1);
 }

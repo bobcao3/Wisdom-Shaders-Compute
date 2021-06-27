@@ -9,13 +9,20 @@
 
 #define USE_HALF
 
-#if (defined(USE_HALF) && defined(MC_GL_NV_gpu_shader5))
+#if (defined(USE_HALF) && defined(MC_GL_EXT_shader_explicit_arithmetic_types))
+
+#extension GL_EXT_shader_explicit_arithmetic_types : enable
+#define SUPPORT_HALF
+
+#elif (defined(USE_HALF) && defined(MC_GL_NV_gpu_shader5))
 
 #extension GL_NV_gpu_shader5 : enable
+#define SUPPORT_HALF
 
 #elif (defined(USE_HALF) && defined(MC_GL_AMD_gpu_shader_half_float))
 
 #extension GL_AMD_gpu_shader_half_float : enable
+#define SUPPORT_HALF
 
 #define int8_t int
 #define int16_t int
@@ -210,5 +217,181 @@ vec4 pow8(vec4 c)
     vec4 t = (c * c) * (c * c);
     return t * t;
 }
+
+#ifdef SUPPORT_HALF
+float16_t L1dist(f16vec2 v)
+{
+    return max(abs(v.x), abs(v.y));
+}
+
+float16_t L2dist2(f16vec2 v)
+{
+    return dot(v, v);
+}
+
+float16_t pow1d5(float16_t c)
+{
+	return c * sqrt(c);
+}
+
+f16vec2 pow1d5(f16vec2 c)
+{
+	return c * sqrt(c);
+}
+
+f16vec3 pow1d5(f16vec3 c)
+{
+	return c * sqrt(c);
+}
+
+f16vec4 pow1d5(f16vec4 c)
+{
+	return c * sqrt(c);
+}
+
+float16_t pow2(float16_t c)
+{
+	return c * c;
+}
+
+f16vec2 pow2(f16vec2 c)
+{
+	return c * c;
+}
+
+f16vec3 pow2(f16vec3 c)
+{
+	return c * c;
+}
+
+f16vec4 pow2(f16vec4 c)
+{
+	return c * c;
+}
+
+float16_t pow3(float16_t c)
+{
+    return c * c * c;
+}
+
+f16vec2 pow3(f16vec2 c)
+{
+    return c * c * c;
+}
+
+f16vec3 pow3(f16vec3 c)
+{
+    return c * c * c;
+}
+
+f16vec4 pow3(f16vec4 c)
+{
+    return c * c * c;
+}
+
+float16_t pow4(float16_t c)
+{
+    return (c * c) * (c * c);
+}
+
+f16vec2 pow4(f16vec2 c)
+{
+    return (c * c) * (c * c);
+}
+
+f16vec3 pow4(f16vec3 c)
+{
+    return (c * c) * (c * c);
+}
+
+f16vec4 pow4(f16vec4 c)
+{
+    return (c * c) * (c * c);
+}
+
+float16_t pow5(float16_t c)
+{
+    return (c * c) * (c * c) * c;
+}
+
+f16vec2 pow5(f16vec2 c)
+{
+    return (c * c) * (c * c) * c;
+}
+
+f16vec3 pow5(f16vec3 c)
+{
+    return (c * c) * (c * c) * c;
+}
+
+f16vec4 pow5(f16vec4 c)
+{
+    return (c * c) * (c * c) * c;
+}
+
+float16_t pow6(float16_t c)
+{
+    return (c * c) * (c * c) * (c * c);
+}
+
+f16vec2 pow6(f16vec2 c)
+{
+    return (c * c) * (c * c) * (c * c);
+}
+
+f16vec3 pow6(f16vec3 c)
+{
+    return (c * c) * (c * c) * (c * c);
+}
+
+f16vec4 pow6(f16vec4 c)
+{
+    return (c * c) * (c * c) * (c * c);
+}
+
+float16_t pow7(float16_t c)
+{
+    return (c * c) * (c * c) * (c * c) * c;
+}
+
+f16vec2 pow7(f16vec2 c)
+{
+    return (c * c) * (c * c) * (c * c) * c;
+}
+
+f16vec3 pow7(f16vec3 c)
+{
+    return (c * c) * (c * c) * (c * c) * c;
+}
+
+f16vec4 pow7(f16vec4 c)
+{
+    return (c * c) * (c * c) * (c * c) * c;
+}
+
+float16_t pow8(float16_t c)
+{
+    float16_t t = (c * c) * (c * c);
+    return t * t;
+}
+
+f16vec2 pow8(f16vec2 c)
+{
+    f16vec2 t = (c * c) * (c * c);
+    return t * t;
+}
+
+f16vec3 pow8(f16vec3 c)
+{
+    f16vec3 t = (c * c) * (c * c);
+    return t * t;
+}
+
+f16vec4 pow8(f16vec4 c)
+{
+    f16vec4 t = (c * c) * (c * c);
+    return t * t;
+}
+#endif
 
 #endif
