@@ -1,8 +1,8 @@
 #ifndef _INCLUDE_COLOR
 #define _INCLUDE_COLOR
 
-const float histogram_log_scale = 16.0f;
-const float histogram_log_zero = 240.0f;
+const float histogram_log_scale = 20.0f;
+const float histogram_log_zero = 220.0f;
 
 const float gamma = 2.2;
 const float invGamma = 1.0 / 2.2;

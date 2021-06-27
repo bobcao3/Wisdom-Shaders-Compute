@@ -89,32 +89,8 @@ vec3 applyLUT(vec3 c)
 
 #define HISTOGRAM_MEDIAN
 
-float getMedianLuma(float target, out int i) // Medium: target = 0.5
-{
-    i = 128;
-    int low = 0;
-    int high = 255;
-
-    for (int _k = 0; _k < 8; _k++)
-    {
-        float s = uintBitsToFloat(texelFetch(shadowcolor0, ivec2(i, 1), 0).r);
-
-        if (s > target)
-        {
-            high = i;
-        }
-        else
-        {
-            low = i;
-        }
-
-        i = low + ((high - low) >> 1);
-    }
-
-    float median_luma = exp((float(i) - histogram_log_zero) / histogram_log_scale);
-
-    return median_luma;
-}
+in flat float median_luma;
+in flat int median_index;
 
 void main()
 {
@@ -146,9 +122,7 @@ void main()
 #endif
 
 #ifdef HISTOGRAM_MEDIAN
-    int median_index;
-    float median = getMedianLuma(0.5, median_index);
-    new_luma = clamp(new_luma * (0.05 / median), new_luma * 0.1, new_luma * 10.0);
+    new_luma = clamp(new_luma * (0.05 / median_luma), new_luma * 0.1, new_luma * 10.0);
 #endif
 
 #define SATURATION 0.4 // [-1.0 -0.8 -0.6 -0.4 -0.2 0.0 0.2 0.4 0.6 0.8 1.0]
@@ -162,9 +136,6 @@ void main()
 #ifdef APPLY_LUT
     color = applyLUT(color);
 #endif
-
-    // if (iuv.x < 1024 && iuv.y < 1024)
-    //     color = vec3(texelFetch(shadowcolor0, iuv * 2, 0).r >> 24);
 
     // if (iuv.x < viewWidth / 16 && iuv.y < viewHeight / 16)
     //     color = texelFetch(colortex4, iuv * 16, 0).rrr * histogram_log_scale;

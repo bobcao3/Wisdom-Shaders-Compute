@@ -145,6 +145,7 @@ float BSDF_G(vec3 v, vec3 l, vec3 n, float alpha)
 // https://www.pbr-book.org/3ed-2018/Reflection_Models/Microfacet_Models BeckmannDistribution::D
 float BSDF_D_theta_h(float theta_h, float alpha)
 {
+    if (alpha < 1e-5) return 1.0;
     return exp(-pow2(tan(theta_h)) / pow2(alpha)) / (PI * pow2(alpha) * pow4(cos(theta_h)));
 }
 
@@ -262,7 +263,7 @@ vec3 BSDF(vec3 wo, vec3 wi, vec3 N, float metalic, float alpha, vec3 albedo, boo
 #if defined(DIFFUSE_ONLY) || defined(SPECULAR_ONLY)
         return do_specular ? specular * F : diffuse;
 #else
-        return specular * D * F + diffuse;
+        return (specular * D * F + diffuse) * dot(N, wi);
 #endif
     }
 }
@@ -407,7 +408,7 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
 
     vec3 shadow_pos_linear = world2shadowProj(world_pos) * 0.5 + 0.5;
 
-    float shadow = shadowTexSmooth(shadow_pos_linear, shadow_depth, 0.0);
+    float shadow = shadowTexSmooth(shadow_pos_linear, shadow_depth, 1e-4);
 
 #ifdef SCREEN_SPACE_SHADOWS
     if (mat.flag < 0.1)

@@ -24,30 +24,9 @@ layout (r11f_g11f_b10f) uniform image2D OUTPUT_IMAGE;
 
 #define VL
 
-uniform sampler2D shadowtex1;
-
 uniform sampler2D shadowcolor1;
 
-float VSM(float t, vec2 uv)
-{
-    vec2 means = texture(shadowcolor1, uv).rg;
-    float e_x = means.x;
-    float var = means.y - e_x * e_x;
-
-    float p_max = (var + 1e-7) / (var + pow2(max(0.0, t - e_x)) + 1e-7);
-
-    const float c = 500;
-
-    float depth_test_exp = clamp(exp(-c * (t - e_x)), 0.0, 1.0);
-
-    return min(p_max, depth_test_exp);
-}
-
-float shadowTexSmooth(in vec3 spos, out float depth, float bias) {
-    if (clamp(spos, vec3(0.01), vec3(0.99)) != spos) return 1.0;
-
-    return VSM(spos.z, spos.xy);
-}
+#include "/libs/shadows.glsl"
 
 #include "/libs/atmosphere.glsl"
 

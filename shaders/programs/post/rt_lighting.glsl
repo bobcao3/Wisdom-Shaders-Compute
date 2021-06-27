@@ -29,26 +29,7 @@ layout (r11f_g11f_b10f) uniform image2D colorimg5;
 
 uniform sampler2D shadowcolor1;
 
-float VSM(float t, vec2 uv)
-{
-    vec2 means = texture(shadowcolor1, uv).rg;
-    float e_x = means.x;
-    float var = means.y - e_x * e_x;
-
-    float p_max = (var + 1e-7) / (var + pow2(max(0.0, t - e_x)) + 1e-7);
-
-    const float c = 500;
-
-    float depth_test_exp = clamp(exp(-c * (t - e_x)), 0.0, 1.0);
-
-    return min(p_max, depth_test_exp);
-}
-
-float shadowTexSmooth(in vec3 spos, out float depth, float bias) {
-    if (clamp(spos, vec3(0.0), vec3(1.0)) != spos) return 1.0;
-
-    return VSM(spos.z, spos.xy);
-}
+#include "/libs/shadows.glsl"
 
 uniform vec3 shadowLightPosition;
 uniform vec3 cameraPosition;
@@ -74,25 +55,27 @@ int binarySearchColumns(float r)
 {
     int i = 4;
 
-    i = 0;
-    for (; i < 8; i++)
-    {
-        if (r <= cdf[i]) break;
-    }
-
-    return i;
+    int low = 0;
+    int high = 7;
 
     for (int _t = 0; _t < 4; _t++)
     {
         float curr = cdf[i];
         float curr_prev = i > 0 ? cdf[i - 1] : 0.0;
-        if (curr_prev < r && r < curr) break;
+        if (curr_prev <= r && r < curr) break;
 
-        if (curr < r) i = i + max(1, (7 - i) >> 1);
-        if (curr >= r) i = min(i >> 1, i - 1);
+        if (curr > r)
+        {
+            high = i - 1;
+        }
+        else
+        {
+            low = i + 1;
+        }
 
-        i = clamp(i, 0, 7);
+        i = low + ((high - low) >> 1);
     }
+
     return i;
 }
 
@@ -100,13 +83,8 @@ int binarySearchRows(int column, float r)
 {
     int i = 4;
 
-    i = 0;
-    for (; i < 8; i++)
-    {
-        if (r <= weights[column][i]) break;
-    }
-
-    return i;
+    int low = 0;
+    int high = 7;
 
     for (int _t = 0; _t < 4; _t++)
     {
@@ -114,10 +92,16 @@ int binarySearchRows(int column, float r)
         float curr_prev = i > 0 ? weights[column][i - 1] : 0.0;
         if (curr_prev <= r && r <= curr) break;
 
-        if (curr < r) i = i + max(1, (7 - i) >> 1);
-        if (curr >= r) i = min(i >> 1, i - 1);
+        if (curr > r)
+        {
+            high = i - 1;
+        }
+        else
+        {
+            low = i + 1;
+        }
 
-        i = clamp(i, 0, 7);
+        i = low + ((high - low) >> 1);
     }
     return i;
 }
@@ -379,7 +363,6 @@ void main()
             // selectPdf *= pdf;
 #endif
 
-
             if (dot(sample_dir, view_normal) <= 0.0)
             {
                 // Bruh
@@ -447,7 +430,7 @@ void main()
 #endif
         }
 
-        // color /= max(0.001, samples_taken);
+        color /= max(1.0, samples_taken);
 
         if (isnan(color.r) || isnan(color.g) || isnan(color.b)) color = vec3(0.0);
         color = clamp(color, vec3(1e-5), vec3(1e4));
