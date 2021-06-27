@@ -29,7 +29,25 @@ float getMedianLuma(float target, out int i) // Medium: target = 0.5
         i = low + ((high - low) >> 1);
     }
 
-    float median_luma = exp((float(i) - histogram_log_zero) / histogram_log_scale);
+    float value = uintBitsToFloat(texelFetch(shadowcolor0, ivec2(i, 1), 0).r);
+    float low_value, high_value;
+
+    if (value > target)
+    {
+        high_value = value;
+        low_value = i <= 0 ? 0.0 : uintBitsToFloat(texelFetch(shadowcolor0, ivec2(i - 1, 1), 0).r);
+
+        value = float(i) - 1.0 + (0.5 - low_value) / max(0.001, high_value - low_value);
+    }
+    else
+    {
+        low_value = value;
+        high_value = i >= 255 ? 1.0 : uintBitsToFloat(texelFetch(shadowcolor0, ivec2(i + 1, 1), 0).r);
+
+        value = float(i) + (0.5 - low_value) / max(0.001, high_value - low_value);
+    }
+
+    float median_luma = exp((value - histogram_log_zero) / histogram_log_scale);
 
     return median_luma;
 }

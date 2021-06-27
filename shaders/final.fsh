@@ -122,7 +122,7 @@ void main()
 #endif
 
 #ifdef HISTOGRAM_MEDIAN
-    new_luma = clamp(new_luma * (0.05 / median_luma), new_luma * 0.1, new_luma * 10.0);
+    new_luma = clamp(new_luma * (0.05 / median_luma), new_luma * 0.7, new_luma * 10.0);
 #endif
 
 #define SATURATION 0.4 // [-1.0 -0.8 -0.6 -0.4 -0.2 0.0 0.2 0.4 0.6 0.8 1.0]
