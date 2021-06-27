@@ -192,7 +192,7 @@ vec3 getF(float metalic, float roughness, float cosTheta, vec3 albedo)
 
 	#include "/programs/post/materials.glsl"
 
-	cosTheta = max(0.01, abs(cosTheta));
+	cosTheta = max(0.0, abs(cosTheta));
 
 	vec3 NcosTheta = 2.0 * N * cosTheta;
 	float cosTheta2 = cosTheta * cosTheta;
@@ -231,10 +231,13 @@ vec3 BSDF(vec3 wo, vec3 wi, vec3 N, float metalic, float alpha, vec3 albedo, boo
     float G = BSDF_G(wo, wi, N, alpha);
     float D = BSDF_D(h, N, alpha);
 
+    if (dot(N, wo) < 0.0) return vec3(0.0);
+    if (dot(N, wi) < 0.0) return vec3(0.0);
+
     if (metalic > (229.5 / 255.0))
     {
         // Metals
-        vec3 F = MetalF(metalic, dot(wi, N));
+        vec3 F = MetalF(metalic, abs(dot(wi, N)));
 
 #ifdef DIFFUSE_ONLY
         return vec3(0.0);
@@ -250,20 +253,20 @@ vec3 BSDF(vec3 wo, vec3 wi, vec3 N, float metalic, float alpha, vec3 albedo, boo
 //         F0 *= albedo;
 // #endif
 
-        vec3 F = F0 + pow5(1.0 - max(dot(wo, h), 0.0)) * (1.0 - F0);
+        vec3 F = F0 + pow5(1.0 - abs(dot(wo, h))) * (1.0 - F0);
 
         vec3 kS = F;
         kD = 1.0 - kS;
         kD *= 1.0 - F0.r;
 
-        vec3 diffuse = kD / PI;
+        vec3 diffuse = vec3(1.0);//kD / PI;
 
-        float specular = G / max(0.001, 4.0 * max(dot(N, wo),  0.0));
+        float specular = G / max(0.001, 4.0 * abs(dot(N, wo)));
 
 #if defined(DIFFUSE_ONLY) || defined(SPECULAR_ONLY)
-        return do_specular ? specular * F : diffuse;
+        return do_specular ? specular * F : diffuse * max(dot(N, wi), 0.0);
 #else
-        return (specular * D * F + diffuse) * dot(N, wi);
+        return specular * D * F + diffuse * max(dot(N, wi), 0.0);
 #endif
     }
 }
@@ -431,7 +434,7 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
 
     if (mat.flag < 0.0)
     {
-        color = mat.albedo * 2.0;
+        color += mat.albedo;
     }
 
     return color;

@@ -105,7 +105,7 @@ void main()
 
 #define SHARPEN_STRENGTH 0.3 // [0.1 0.2 0.3 0.4 0.5 0.6]
 
-    float new_luma = clamp((pixel_luma - local_average_luma) * (1.0 + SHARPEN_STRENGTH) + local_average_luma, 0.0, 1e5);
+    float new_luma = clamp((pixel_luma - local_average_luma) * (1.0 + SHARPEN_STRENGTH) + local_average_luma, pixel_luma * 0.5, 1e5);
 
 #ifdef HISTOGRAM_NORMALIZATION
     // Histogram normalization

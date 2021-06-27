@@ -26,7 +26,7 @@ int getIndex(ivec2 uv)
 
 shared lowp vec3 lds_normals[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
 shared lowp vec3 lds_colors[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
-shared lowp vec3 lds_albedo[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
+// shared lowp vec3 lds_albedo[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
 shared float lds_variance[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
 shared float lds_depth[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
 shared bool lds_valid[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
@@ -43,11 +43,11 @@ void load(ivec2 local_xy, ivec2 iuv)
     ivec2 sample_uv = clamp(iuv, ivec2(0), ivec2(floor(viewWidth * 0.5) - 1, floor(viewHeight * 0.5) - 1));
 
     vec3 sample_normal = texelFetch(colortex7, sample_uv * 2, 0).rgb;
-    vec3 sample_albedo = texelFetch(colortex6, sample_uv * 2, 0).rgb / (texelFetch(colortex8, sample_uv * 2, 0).b + 0.1);
+    // vec3 sample_albedo = texelFetch(colortex6, sample_uv * 2, 0).rgb / (texelFetch(colortex8, sample_uv * 2, 0).b + 0.1);
     vec3 sample_color = imageLoad(colorimg5, sample_uv).rgb;
     float sample_variance = imageLoad(colorimg5, sample_uv + ivec2(viewWidth * 0.5, 0.0)).r;
 
-    lds_albedo[getIndex(local_xy + 2)] = sample_albedo;
+    // lds_albedo[getIndex(local_xy + 2)] = sample_albedo;
     lds_colors[getIndex(local_xy + 2)] = sample_color;
     lds_normals[getIndex(local_xy + 2)] = sample_normal;
     lds_variance[getIndex(local_xy + 2)] = sample_variance;
@@ -103,7 +103,7 @@ void main()
 
     float center_depth = lds_depth[getIndex(local_id)];
 
-    vec3 center_albedo = lds_albedo[getIndex(local_id)];
+    // vec3 center_albedo = lds_albedo[getIndex(local_id)];
 
     // Filter
     for (int i = -2; i <= 2; i++)
@@ -116,15 +116,15 @@ void main()
             if (isnan(sample_color.r) || !lds_valid[getIndex(local_id + offset)]) continue;
 
             vec3 sample_normal = lds_normals[getIndex(local_id + offset)];
-            vec3 sample_albedo = lds_albedo[getIndex(local_id + offset)] - center_albedo;
+            // vec3 sample_albedo = lds_albedo[getIndex(local_id + offset)] - center_albedo;
             float color_diff = abs(dot(sample_color, vec3(0.2126, 0.7152, 0.0722)) - center_luma);
             float sample_var = lds_variance[getIndex(local_id + offset)];
             float sample_depth = lds_depth[getIndex(local_id + offset)];
 
             float sample_weight = gaussian[i + 2] * gaussian[j + 2];
-            sample_weight *= pow(max(0.0, dot(normal, sample_normal)), 128.0);
+            sample_weight *= pow(max(0.0, dot(normal, sample_normal)), 4.0);
             sample_weight *= exp(-color_diff / max(4.0 * sqrt(sample_var), 0.01));
-            sample_weight *= exp(-dot(sample_albedo, sample_albedo) * 20.0);
+            // sample_weight *= exp(-dot(sample_albedo, sample_albedo) * 20.0);
             sample_weight *= exp(-abs(sample_depth - center_depth) / max(0.1, center_depth) * 8);
 
             color += sample_color * sample_weight;

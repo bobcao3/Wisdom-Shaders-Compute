@@ -55,6 +55,14 @@ int binarySearchColumns(float r)
 {
     int i = 4;
 
+    // i = 0;
+
+    // for (; i < 8; i++)
+    // {
+    //     float curr = cdf[i];
+    //     if (curr > r) return i;
+    // }
+
     int low = 0;
     int high = 7;
 
@@ -62,7 +70,7 @@ int binarySearchColumns(float r)
     {
         float curr = cdf[i];
         float curr_prev = i > 0 ? cdf[i - 1] : 0.0;
-        if (curr_prev <= r && r < curr) break;
+        if (curr_prev < r && r <= curr) break;
 
         if (curr > r)
         {
@@ -83,6 +91,14 @@ int binarySearchRows(int column, float r)
 {
     int i = 4;
 
+    // i = 0;
+
+    // for (; i < 8; i++)
+    // {
+    //     float curr = weights[column][i];
+    //     if (curr > r) return i;
+    // }
+
     int low = 0;
     int high = 7;
 
@@ -90,7 +106,7 @@ int binarySearchRows(int column, float r)
     {
         float curr = weights[column][i];
         float curr_prev = i > 0 ? weights[column][i - 1] : 0.0;
-        if (curr_prev <= r && r <= curr) break;
+        if (curr_prev < r && r <= curr) break;
 
         if (curr > r)
         {
@@ -115,7 +131,7 @@ float getSelectionPDF(int i, int j)
 }
 #endif
 
-bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir, vec3 world_pos, vec3 world_normal, bool refine, float vox_lmcoord_approx, out Material mat, out vec3 hit_view_pos, out vec3 hit_wpos, out ivec2 hit_iuv)
+bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir, vec3 world_pos, vec3 world_normal, bool refine, float vox_lmcoord_approx, out Material mat, out vec3 hit_view_pos, out vec3 hit_wpos, out ivec2 hit_iuv, out vec3 real_sampled_dir)
 {
 // #if !defined(SPECULAR_PT) && defined(SPECULAR_ONLY)
 //     return false;
@@ -131,8 +147,6 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
     bool hit = false;
 
     vec3 hit_proj_pos;
-
-    vec3 real_sampled_dir;
 
     // SSR
     ivec2 hit_pos = raytrace(view_pos + view_normal * 0.05, iuv, sample_dir, stride, stride_multiplier, zThickness, lod, refine);
@@ -242,7 +256,8 @@ void main()
     ivec2 iuv_orig = ivec2(gl_GlobalInvocationID.xy);
     vec2 uv = (vec2(iuv) + 1.0) * invWidthHeight;
 
-    float depth = texelFetch(colortex4, iuv_orig, 0).r;
+    // float depth = texelFetch(colortex4, iuv_orig, 0).r;
+    float depth = texelFetch(depthtex0, iuv, 0).r;
 
     ivec2 halfscreen_offset = ivec2(viewWidth, viewHeight) >> 1;
 
@@ -302,7 +317,7 @@ void main()
 // #ifdef SPECULAR_ONLY
 //         z1 = z2 = z3 = z4 = uint((texelFetch(noisetex, iuv_orig & 0xFF, 0).r * 65535.0));
 // #else
-        z1 = z2 = z3 = z4 = uint((texelFetch(noisetex, iuv_orig & 0xFF, 0).r * 65535.0) * 1000) ^ uint(frameCounter);
+        z1 = z2 = z3 = z4 = uint(texelFetch(noisetex, iuv_orig & 0xFF, 0).r * 65535.0) ^ uint(frameCounter % 0xFFFF);
 // #endif
         getRand();
 
@@ -359,6 +374,7 @@ void main()
 
 #ifdef SPECULAR_ONLY
             if (roughness > 0.6) continue;
+            roughness = pow2(roughness);
             sample_dir = ImportanceSampleBeckmann(rand2d, view_normal, view_dir, roughness, pdf);
             // selectPdf *= pdf;
 #endif
@@ -369,6 +385,7 @@ void main()
                 continue;
             }
             
+            selectPdf = max(1e-5, selectPdf);
             samples_taken++;
 
             // Trace Ray
@@ -376,9 +393,11 @@ void main()
             vec3 hit_wpos;
             Material mat;
             vec3 sample_rad;
+            float contribute_rad = 0.0;
             ivec2 hit_iuv;
+            vec3 real_sampled_dir;
 
-            if (traceRayHybrid(iuv, view_pos, view_normal, sample_dir, world_pos, world_normal, true, lmcoord.y, mat, hit_view_pos, hit_wpos, hit_iuv))
+            if (traceRayHybrid(iuv, view_pos, view_normal, sample_dir, world_pos, world_normal, true, lmcoord.y, mat, hit_view_pos, hit_wpos, hit_iuv, real_sampled_dir))
             {
                 // Hit
                 sample_rad = getLighting(mat, view_normal, sample_dir, hit_view_pos, hit_wpos, vec3(1.0));
@@ -389,20 +408,26 @@ void main()
                     sample_rad = max(sample_rad, vec3(texelFetch(colortex2, hit_iuv, 0).rgb));
                 }
 #endif
+
+                contribute_rad = max(sample_rad.r, max(sample_rad.g, sample_rad.b));
             } else {
                 // Skybox
                 vec2 skybox_uv = project_skybox2uv(normalize(mat3(gbufferModelViewInverse) * sample_dir));
 
-                float skybox_lod = pow(roughness, 0.25) * 5.0;
+                // float skybox_lod = pow(roughness, 0.25) * 5.0;
 
-                int skybox_lod0 = int(floor(skybox_lod));
-                int skybox_lod1 = int(ceil(skybox_lod));
-                vec3 skybox_color = mix(
-                    sampleLODmanual(colortex3, skybox_uv, skybox_lod0).rgb,
-                    sampleLODmanual(colortex3, skybox_uv, skybox_lod1).rgb,
-                    fract(skybox_lod));
+                // int skybox_lod0 = int(floor(skybox_lod));
+                // int skybox_lod1 = int(ceil(skybox_lod));
+                // vec3 skybox_color = mix(
+                //     sampleLODmanual(colortex3, skybox_uv, skybox_lod0).rgb,
+                //     sampleLODmanual(colortex3, skybox_uv, skybox_lod1).rgb,
+                //     fract(skybox_lod));
+
+                vec3 skybox_color = texture(colortex3, skybox_uv).rgb;
 
                 sample_rad = skybox_color;
+           
+                contribute_rad = max(sample_rad.r, max(sample_rad.g, sample_rad.b)) * 0.1;
             }
 
 
@@ -416,17 +441,17 @@ void main()
 #ifdef SPLIT_SUM
             sample_rad = sample_rad / selectPdf;
 #else
-            sample_rad = BSDF(-view_dir, sample_dir, view_normal, metalic, roughness, albedo, do_specular, _kd) * sample_rad / selectPdf;
+            sample_rad = BSDF(-view_dir, real_sampled_dir, view_normal, metalic, roughness, albedo, do_specular, _kd) * sample_rad / selectPdf;
 #endif
 
 #ifdef DIFFUSE_ONLY
-            sample_rad /= _kd + 1e-5;
+            //sample_rad /= _kd + 1e-5;
 #endif
 
             color += sample_rad;
 
 #ifdef RAY_GUIDING
-            contributions[gl_LocalInvocationID.x][gl_LocalInvocationID.y][i] = dot(sample_rad, vec3(0.3, 0.6, 0.1));
+            contributions[gl_LocalInvocationID.x][gl_LocalInvocationID.y][i] = contribute_rad;
 #endif
         }
 
@@ -459,7 +484,8 @@ void main()
                     dir *= 8.0;
                     ivec2 iloc = clamp(ivec2(floor(dir)), ivec2(0), ivec2(7));
                     weights[iloc.x][iloc.y] += contributions[i][j][k];
-                    normalize_max = max(normalize_max, contributions[i][j][k]);
+                    // normalize_max = max(normalize_max, contributions[i][j][k]);
+                    normalize_max += contributions[i][j][k];
                 }
             }
         }

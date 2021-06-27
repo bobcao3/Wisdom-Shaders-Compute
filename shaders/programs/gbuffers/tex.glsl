@@ -6,6 +6,7 @@ VERTEX_INOUT VertexOut {
     vec2 uv;
     // flat vec2 normal_enc;
     vec3 normal;
+    vec3 tangent;
     float view_z;
     vec2 lmcoord;
     float flag;
@@ -18,6 +19,7 @@ VERTEX_INOUT VertexOut {
 
 uniform sampler2D tex;
 uniform sampler2D specular;
+uniform sampler2D normals;
 
 /* RENDERTARGETS: 6,7,8 */
 
@@ -77,8 +79,16 @@ void main()
     spec.r = sqrt(spec.r);
 #endif
 
+    vec3 bitangent = normalize(cross(tangent, normal));
+    mat3 tbn = mat3(tangent, bitangent, normal);
+
+    vec3 normal_tex = texture(normals, uv).rgb; normal_tex.rg = normal_tex.rg * 2.0 - 1.0;
+    vec3 normal_sampled = vec3(normal_tex.rg, sqrt(1.0 - dot(normal_tex.xy, normal_tex.xy)));
+
+    normal_sampled = normalize(mix(tbn * normal_sampled, normal, 0.5));
+
     gl_FragData[0] = albedo; // Albedo
-    gl_FragData[1] = vec4(normal, flag); // Depth, Flag, Normal
+    gl_FragData[1] = vec4(normal_sampled, flag); // Depth, Flag, Normal
     gl_FragData[2] = vec4(lmcoord, spec.rg);
 }
 
@@ -92,6 +102,7 @@ uniform vec2 taaOffset;
 
 attribute vec2 mc_Entity;
 attribute vec4 mc_midTexCoord;
+attribute vec4 at_tangent;
 
 uniform mat4 gbufferModelViewInverse;
 
@@ -105,6 +116,9 @@ void main()
     color = gl_Color;
     // normal_enc = normalEncode(normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz));
     normal = mat3(gbufferModelViewInverse) * normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz);
+
+    vec3 tangent_adj = at_tangent.w == 0.0 ? -at_tangent.xyz : at_tangent.xyz;
+    tangent = mat3(gbufferModelViewInverse) * normalize(gl_NormalMatrix * tangent_adj);
 
     uv = (gl_TextureMatrix[0] * gl_MultiTexCoord0).st;
 

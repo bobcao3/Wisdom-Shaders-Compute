@@ -2,7 +2,7 @@
 
 layout (local_size_x = 16, local_size_y = 16) in;
 
-const vec2 workGroupsRender = vec2(0.5f, 0.5f);
+const vec2 workGroupsRender = vec2(0.55f, 0.55f);
 
 uniform sampler2D colortex4;
 uniform sampler2D colortex5;
@@ -124,7 +124,7 @@ void main()
             sample_weight *= pow(max(0.0, dot(normal, sample_normal)), 128.0);
             sample_weight *= exp(-color_diff / max(2.0 * sqrt(sample_var), 0.01));
             // sample_weight *= exp(-dot(sample_albedo, sample_albedo) * 20.0);
-            sample_weight *= exp(-abs(sample_depth - center_depth) / max(0.1, center_depth) * 8);
+            sample_weight *= exp(-abs(sample_depth - center_depth) / max(0.03, center_depth) * 8);
 
             color += sample_color * sample_weight;
             total_var += sample_var * pow2(sample_weight);

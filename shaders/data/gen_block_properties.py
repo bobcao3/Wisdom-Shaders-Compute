@@ -2,7 +2,6 @@ shape_cube = 0
 shape_bottom_slab = 1
 shape_top_slab = 2
 shape_sphere = 3
-
 shape_transparent = 4
 
 emissives = ["lantern", "lava", "fire", "torch", "glow"]
@@ -26,8 +25,12 @@ with open('blocks.txt') as f:
     for line in lines:
         shape = 0
         emissive = 0
+        # Shapes
         if "stairs" in line:
             shape = shape_bottom_slab
+        if "glass" in line:
+            shape = shape_transparent
+        # Emissive
         for e in emissives:
             if e in line:
                 emissive = 1

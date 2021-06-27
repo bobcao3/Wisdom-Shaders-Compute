@@ -88,21 +88,6 @@ void main()
         vec3 curr_color = texelFetch(colortex5, iuv_orig, 0).rgb;
         color = curr_color;
 
-#ifdef FIREFLY_FILTER
-        vec3 s0 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2(-1, -1)).rgb;
-        vec3 s1 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2( 0, -1)).rgb;
-        vec3 s2 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2( 1, -1)).rgb;
-        vec3 s3 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2(-1,  0)).rgb;
-        vec3 s4 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2( 1,  0)).rgb;
-        vec3 s5 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2(-1,  1)).rgb;
-        vec3 s6 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2( 0,  1)).rgb;
-        vec3 s7 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2( 1,  1)).rgb;
-        vec3 min_bound = min(min(min(s0, s1), min(s2, s3)), min(min(s4, s5), min(s6, s7)));
-        vec3 max_bound = max(max(max(s0, s1), max(s2, s3)), max(max(s4, s5), max(s6, s7)));
-        vec3 color_unclamped = color;
-        color = clamp(color, min(min_bound * 0.5, min_bound - 0.2), max(max_bound * 2.0, max_bound + 1.0));
-#endif
-
         vec2 history_uv = uv + texelFetch(colortex1, iuv, 0).rg;
         float weight = 0.06;
         
@@ -119,7 +104,27 @@ void main()
             weight = 1.0;
         }
 
-        history_length = clamp((weight > 0.9) ? 1.0 : history_length + 1.0, 0.0, float(MAX_SVGF_TEMPORAL_LENGTH));
+        // weight = 1.0;
+
+#ifdef FIREFLY_FILTER
+        if (weight > 0.9)
+        {
+            vec3 s0 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2(-1, -1)).rgb;
+            vec3 s1 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2( 0, -1)).rgb;
+            vec3 s2 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2( 1, -1)).rgb;
+            vec3 s3 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2(-1,  0)).rgb;
+            vec3 s4 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2( 1,  0)).rgb;
+            vec3 s5 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2(-1,  1)).rgb;
+            vec3 s6 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2( 0,  1)).rgb;
+            vec3 s7 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2( 1,  1)).rgb;
+            vec3 min_bound = min(min(min(s0, s1), min(s2, s3)), min(min(s4, s5), min(s6, s7)));
+            vec3 max_bound = max(max(max(s0, s1), max(s2, s3)), max(max(s4, s5), max(s6, s7)));
+            vec3 color_unclamped = color;
+            color = clamp(color, min(min_bound * 0.5, min_bound - 0.2), max(max_bound * 2.0, max_bound + 1.0));
+        }
+#endif
+
+        history_length = clamp((weight > 0.9) ? 1.0 : history_length + 1.0, 1.0, float(MAX_SVGF_TEMPORAL_LENGTH));
 
         weight = 1.0 / history_length;
 
@@ -131,10 +136,8 @@ void main()
             float ema_last = last_moments.x;
             float ema2_last = last_moments.y;
 
-            float delta = x - ema_last;
-
-            float ema = ema_last + weight * delta;
-            float ema2 = mix(ema2_last, pow2(ema), weight);
+            float ema = mix(ema_last, x, weight);
+            float ema2 = mix(ema2_last, pow2(x), weight);
             float emvar = abs(pow2(ema) - ema2);
 
             if (history_length < 8)
@@ -167,6 +170,8 @@ void main()
             color = mix(history.rgb, color, weight);
             temporal = color;
         }
+
+        if (curr_color.r > 1e5) color = vec3(1.0, 0.0, 0.0);
 
 // #ifdef FIREFLY_FILTER
 //         if (!squared)

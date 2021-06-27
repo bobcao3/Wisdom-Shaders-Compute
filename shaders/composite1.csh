@@ -3,7 +3,7 @@
 #include "/libs/compat.glsl"
 
 #define SPECULAR_PT
-//#define SPLIT_SUM
+#define SPLIT_SUM
 
 #ifdef SPECULAR_PT
 #endif
