@@ -162,7 +162,7 @@ vec3 ImportanceSampleBeckmann(vec2 rand, vec3 N, vec3 wo, float alpha, out float
 
     vec3 h = vec3(sin(theta_h) * cos(phi_h), sin(theta_h) * sin(phi_h), cos(theta_h));
     vec3 world_h = make_coord_space(N) * h;
-    vec3 wi = reflect(wo, world_h);
+    vec3 wi = reflect(-wo, world_h);
 
     float cos_theta_h = h.z;
     float sin_theta_h = sqrt(1.0 - pow2(cos_theta_h));
@@ -228,11 +228,11 @@ vec3 BSDF(vec3 wo, vec3 wi, vec3 N, float metalic, float alpha, vec3 albedo, boo
 {
     vec3 h = normalize(wo + wi);
 
-    float G = BSDF_G(wo, wi, N, alpha);
-    float D = BSDF_D(h, N, alpha);
-
     if (dot(N, wo) < 0.0) return vec3(0.0);
     if (dot(N, wi) < 0.0) return vec3(0.0);
+
+    float G = BSDF_G(wo, wi, N, alpha);
+    float D = BSDF_D(h, N, alpha);
 
     if (metalic > (229.5 / 255.0))
     {
@@ -259,7 +259,7 @@ vec3 BSDF(vec3 wo, vec3 wi, vec3 N, float metalic, float alpha, vec3 albedo, boo
         kD = 1.0 - kS;
         kD *= 1.0 - F0.r;
 
-        vec3 diffuse = vec3(1.0);//kD / PI;
+        vec3 diffuse = kD / PI;
 
         float specular = G / max(0.001, 4.0 * abs(dot(N, wo)));
 
@@ -322,9 +322,10 @@ struct Material
     float roughness;
     float metalic;
     float flag;
+    vec3 view_normal;
 };
 
-vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, vec3 world_pos, vec3 ao)
+vec3 getLighting(Material mat, vec3 view_dir, vec3 view_pos, vec3 world_pos, vec3 ao)
 {
     vec3 color = vec3(0.0);
 
@@ -352,15 +353,15 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
         if (getRand() < lumaF0)
         {
             float pdf;
-            sample_dir = ImportanceSampleLambertian(rand2d, view_normal, pdf);
+            sample_dir = ImportanceSampleLambertian(rand2d, mat.view_normal, pdf);
             selectPdf *= pdf * lumaF0;
         } else {
             float pdf;
-            sample_dir = ImportanceSampleBeckmann(rand2d, view_normal, view_dir, mat.roughness, pdf);
+            sample_dir = ImportanceSampleBeckmann(rand2d, mat.view_normal, -view_dir, mat.roughness, pdf);
             selectPdf *= pdf * (1.0 - lumaF0);
         }
 
-        if (dot(sample_dir, view_normal) <= 0.0)
+        if (dot(sample_dir, mat.view_normal) <= 0.0)
         {
             // Bruh
             continue;
@@ -382,7 +383,7 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
             fract(skybox_lod));
 
         vec3 _kd;
-        image_based_lighting += BSDF(-view_dir, sample_dir, view_normal, mat.metalic, mat.roughness, mat.albedo, false, _kd) * mat.albedo * skybox_color / max(0.001, selectPdf);
+        image_based_lighting += BSDF(-view_dir, sample_dir, mat.view_normal, mat.metalic, mat.roughness, mat.albedo, false, _kd) * mat.albedo * skybox_color / max(0.001, selectPdf);
     }
 
     image_based_lighting *= 1.0 / max(samples_taken, 0.01);
@@ -411,7 +412,7 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
 
     vec3 shadow_pos_linear = world2shadowProj(world_pos) * 0.5 + 0.5;
 
-    float shadow = shadowTexSmooth(shadow_pos_linear, shadow_depth, 1e-4);
+    float shadow = shadowTexSmooth(shadow_pos_linear, shadow_depth, 1e-4 * (1.0 + length(shadow_pos_linear.xy) * 8.0));
 
 #ifdef SCREEN_SPACE_SHADOWS
     if (mat.flag < 0.1)
@@ -424,7 +425,7 @@ vec3 getLighting(Material mat, vec3 view_normal, vec3 view_dir, vec3 view_pos, v
 
     // FIXME: SSS
     vec3 _kd;
-    color += BSDF(-view_dir, shadowLightPosition * 0.01, view_normal, mat.metalic, mat.roughness, mat.albedo, false, _kd) * sun_radiance * mat.albedo;
+    color += BSDF(-view_dir, shadowLightPosition * 0.01, mat.view_normal, mat.metalic, mat.roughness, mat.albedo, false, _kd) * sun_radiance * mat.albedo;
 
     float shadow_depth_diff = max(shadow_pos_linear.z - shadow_depth, 0.0);
 

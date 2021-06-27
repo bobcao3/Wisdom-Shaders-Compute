@@ -153,16 +153,21 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
 
     if (hit_pos != ivec2(-1) && hit_pos != iuv)
     {
-        hit_proj_pos = getProjPos(hit_pos);
-        float old_z = hit_view_pos.z;
-        hit_view_pos = proj2view(hit_proj_pos);
-        hit_wpos = view2world(hit_view_pos);
+        vec3 t_hit_proj_pos = getProjPos(hit_pos);
+        vec3 t_hit_view_pos = proj2view(t_hit_proj_pos);
+        vec3 t_hit_wpos = view2world(t_hit_view_pos);
 
-        real_sampled_dir = normalize(hit_view_pos - view_pos);
+        vec3 t_real_sampled_dir = normalize(t_hit_view_pos - view_pos);
 
         // Confirm SSR
-        if (abs(dot(real_sampled_dir, sample_dir)) > 0.8 && hit_proj_pos.z < 1.0)
+        if (max(dot(t_real_sampled_dir, sample_dir), 0.0) > 0.9 && t_hit_proj_pos.z < 1.0)
+        {
             hit = true;
+            hit_proj_pos = t_hit_proj_pos;
+            hit_view_pos = t_hit_view_pos;
+            hit_wpos = t_hit_wpos;
+            real_sampled_dir = t_real_sampled_dir;
+        }
     }
 
     // Voxel ray tracing info
@@ -183,25 +188,29 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
         {
             vec4 proj_pos = (gbufferProjection * vec4(hit_view_pos, 1.0));
             proj_pos.xyz /= proj_pos.w;
+            hit_proj_pos = proj_pos.xyz;
+
             hit_pos = ivec2((proj_pos.xy * 0.5 + 0.5) * vec2(viewWidth, viewHeight));
             if (hit_pos.x >= 0 && hit_pos.y >= 0 && hit_pos.x < viewWidth && hit_pos.y < viewHeight)
             {
-                hit_proj_pos = getProjPos(hit_pos);
-                float old_z = hit_view_pos.z;
-                hit_view_pos = proj2view(hit_proj_pos);
-                hit_wpos = view2world(hit_view_pos);
+                vec3 t_hit_proj_pos = getProjPos(hit_pos);
+                vec3 t_hit_view_pos = proj2view(t_hit_proj_pos);
+                vec3 t_hit_wpos = view2world(t_hit_view_pos);
 
-                vec3 _real_sampled_dir = normalize(hit_view_pos - view_pos);
+                vec3 t_real_sampled_dir = normalize(t_hit_view_pos - view_pos);
 
                 // Use screen space gbuffer
                 if (
-                    abs(dot(_real_sampled_dir, sample_dir)) > 0.8 &&
-                    hit_proj_pos.z < 1.0 &&
+                    abs(dot(t_real_sampled_dir, sample_dir)) > 0.8 &&
+                    t_hit_proj_pos.z < 1.0 &&
                     (vox_data & (1 << 30)) > 0 &&
-                    abs((old_z - hit_view_pos.z) / hit_view_pos.z) < 0.05
+                    abs((t_hit_view_pos.z - hit_view_pos.z) / hit_view_pos.z) < 0.05
                 ) {
                     vox_hit = false;
-                    real_sampled_dir = _real_sampled_dir;
+                    hit_proj_pos = t_hit_proj_pos;
+                    hit_view_pos = t_hit_view_pos;
+                    hit_wpos = t_hit_wpos;
+                    real_sampled_dir = t_real_sampled_dir;
                 }
             }
         }
@@ -212,7 +221,6 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
     // Construct hit material
     {
         vec3 ao = vec3(1.0);
-        vec3 view_normal;
 
         if (vox_hit)
         {
@@ -223,8 +231,7 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
             mat.roughness = 0.9;
             mat.metalic = 0.0;
             mat.flag = vox_emmisive ? -1.0 : 0.0;
-
-            view_normal = mat3(gbufferModelView) * vox_hit_normal;
+            mat.view_normal = mat3(gbufferModelView) * vox_hit_normal;
 
             hit_iuv = ivec2(-1);
         }
@@ -240,8 +247,7 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
             mat.roughness = (1.0 - lm_specular_encoded.b);
             mat.metalic = lm_specular_encoded.a;
             mat.flag = normal_flag_encoded.a;
-
-            view_normal = mat3(gbufferModelView) * normal_flag_encoded.rgb;
+            mat.view_normal = mat3(gbufferModelView) * normal_flag_encoded.rgb;
 
             hit_iuv = hit_pos;
         }
@@ -375,7 +381,7 @@ void main()
 #ifdef SPECULAR_ONLY
             if (roughness > 0.6) continue;
             roughness = pow2(roughness);
-            sample_dir = ImportanceSampleBeckmann(rand2d, view_normal, view_dir, roughness, pdf);
+            sample_dir = ImportanceSampleBeckmann(rand2d, view_normal, -view_dir, roughness, pdf);
             // selectPdf *= pdf;
 #endif
 
@@ -400,7 +406,7 @@ void main()
             if (traceRayHybrid(iuv, view_pos, view_normal, sample_dir, world_pos, world_normal, true, lmcoord.y, mat, hit_view_pos, hit_wpos, hit_iuv, real_sampled_dir))
             {
                 // Hit
-                sample_rad = getLighting(mat, view_normal, sample_dir, hit_view_pos, hit_wpos, vec3(1.0));
+                sample_rad = getLighting(mat, real_sampled_dir, hit_view_pos, hit_wpos, vec3(1.0));
 
 #ifdef SPECULAR_ONLY
                 if (hit_iuv != ivec2(-1))
@@ -445,7 +451,7 @@ void main()
 #endif
 
 #ifdef DIFFUSE_ONLY
-            //sample_rad /= _kd + 1e-5;
+            sample_rad /= _kd + 1e-5;
 #endif
 
             color += sample_rad;

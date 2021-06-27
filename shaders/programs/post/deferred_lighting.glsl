@@ -78,16 +78,15 @@ vec3 compute_lighting(ivec2 iuv, float depth)
     mat.roughness = pow2(1.0 - lm_specular_encoded.b);
     mat.metalic = lm_specular_encoded.a;
     mat.flag = normal_flag_encoded.a;
+    mat.view_normal = mat3(gbufferModelView) * normal_flag_encoded.rgb;
 
 #ifndef SSPT
     vec3 ao = getAO(iuv, depth, albedo);
 #else
     vec3 ao = vec3(1.0);
 #endif
-
-    vec3 view_normal = mat3(gbufferModelView) * normal_flag_encoded.rgb;
     
-    color = getLighting(mat, view_normal, normalize(view_pos), view_pos, world_pos, ao);
+    color = getLighting(mat, normalize(view_pos), view_pos, world_pos, ao);
 #else
     color += starField(world_dir);
     color += smoothstep(0.9999, 0.99991, dot(world_sun_dir, world_dir)) * texelFetch(colortex3, ivec2(viewWidth - 1, 0), 0).rgb * 20.0;
