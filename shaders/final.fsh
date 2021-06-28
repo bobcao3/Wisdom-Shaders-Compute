@@ -54,7 +54,7 @@ uniform sampler2D colortex15;
 
 uniform sampler2D shadowtex1;
 uniform usampler2D shadowcolor0;
-uniform sampler2D shadowcolor1;
+// uniform sampler2D shadowcolor1;
 
 uniform vec2 invWidthHeight;
 

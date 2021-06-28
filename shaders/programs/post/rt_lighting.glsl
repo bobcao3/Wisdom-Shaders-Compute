@@ -3,16 +3,13 @@ uniform float aspectRatio;
 
 uniform vec2 invWidthHeight;
 
-uniform sampler2D colortex0;
 uniform sampler2D colortex2;
 uniform sampler2D colortex3;
 uniform sampler2D colortex4;
 uniform sampler2D colortex6;
 uniform sampler2D colortex7;
 uniform sampler2D colortex8;
-uniform sampler2D colortex11;
 uniform sampler2D colortex12;
-uniform sampler2D colortex15;
 
 layout (r11f_g11f_b10f) uniform image2D colorimg5;
 
@@ -23,7 +20,7 @@ layout (r11f_g11f_b10f) uniform image2D colorimg5;
 
 #include "/configs.glsl"
 
-uniform sampler2D shadowcolor1;
+// uniform sampler2D shadowcolor1;
 
 #include "/libs/shadows.glsl"
 
@@ -203,7 +200,7 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
             vec3 t_real_sampled_dir = normalize(t_hit_view_pos - view_pos);
 
             // Confirm SSR
-            if (max(dot(t_real_sampled_dir, sample_dir), 0.0) > 0.9 && t_hit_proj_pos.z < 1.0 && texelFetch(colortex11, hit_pos, 0).a < 0.01)
+            if (max(dot(t_real_sampled_dir, sample_dir), 0.0) > 0.9 && t_hit_proj_pos.z < 1.0)
             {
                 hit = true;
                 hit_proj_pos = t_hit_proj_pos;
@@ -265,13 +262,14 @@ void main()
 #ifdef FULL_RES
     ivec2 iuv = ivec2(gl_GlobalInvocationID.xy);
     vec2 uv = (vec2(iuv) + 0.5) * invWidthHeight;
+
+    float depth = texelFetch(depthtex0, iuv, 0).r;
 #else
     ivec2 iuv = ivec2(gl_GlobalInvocationID.xy) * 2;
     vec2 uv = (vec2(iuv) + 1.0) * invWidthHeight;
-#endif
 
-    // float depth = texelFetch(colortex4, iuv_orig, 0).r;
-    float depth = texelFetch(depthtex0, iuv, 0).r;
+    float depth = texelFetch(colortex4, iuv_orig, 0).r;
+#endif
 
     ivec2 halfscreen_offset = ivec2(viewWidth, viewHeight) >> 1;
 

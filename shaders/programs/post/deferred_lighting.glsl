@@ -24,7 +24,7 @@ layout (r11f_g11f_b10f) uniform image2D OUTPUT_IMAGE;
 
 #define VL
 
-uniform sampler2D shadowcolor1;
+// uniform sampler2D shadowcolor1;
 
 #include "/libs/shadows.glsl"
 

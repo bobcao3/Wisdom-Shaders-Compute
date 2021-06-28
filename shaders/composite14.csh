@@ -4,7 +4,7 @@
 
 layout (local_size_x = 8, local_size_y = 8) in;
 
-layout (r16f) uniform image2D colorimg4;
+layout (r32f) uniform image2D colorimg4;
 layout (r32ui) uniform uimage2D shadowcolorimg0;
 
 uniform sampler2D colortex4;

@@ -7,7 +7,7 @@ shape_sphere = 5
 shape_transparent = 6 # No interaction with the ray
 shape_translucent = 7 # Color gets tinted
 
-emissives = ["lantern", "lava", "fire", "torch", "glow", "beacon", "sea_pickle", "end_rod"]
+emissives = ["lantern", "lava", "fire", "torch", "glow", "beacon", "sea_pickle", "end_rod", "glow", "concrete_powder"]
 transparents = ["door", "banner", "trapdoor", "rail", "lever", "button", "water", "iron_bars", "wire", "cobweb", "sapling", "tulip", "fungus", "vine", "root", "sugar_cane", "ladder"]
 transparents_exact = [
     "minecraft:grass", "minecraft:fern", "minecraft:dead_bush", "minecraft:seagrass", "minecraft:dandelion", "minecraft:poppy",

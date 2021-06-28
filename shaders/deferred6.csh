@@ -12,7 +12,7 @@ float gaussian[] = float[] (
     0.2709612742154403, 0.45807745156911933, 0.2709612742154403
 );
 
-layout (rgba16f) uniform image2D colorimg5;
+layout (r11f_g11f_b10f) uniform image2D colorimg5;
 
 int getIndex(ivec2 uv)
 {

@@ -22,7 +22,7 @@ uniform sampler2D colortex12;
 uniform sampler2D colortex15;
 
 uniform usampler2D shadowcolor0;
-uniform sampler2D shadowcolor1;
+// uniform sampler2D shadowcolor1;
 
 uniform vec3 shadowLightPosition;
 
