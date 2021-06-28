@@ -103,7 +103,7 @@ void main()
 
         color += indirect * albedo;
 
-        // color = indirect * 3.0;
+        color = indirect;
     }
 
     // color = texelFetch(colortex5, iuv, 0).rgb;

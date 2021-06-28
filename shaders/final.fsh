@@ -22,7 +22,7 @@ const int colortex12Format = RGBA16F; // SSPT temporal
 const int colortex13Format = RGBA16F; // SSPT temporal
 
 const int shadowcolor0Format = R32UI;
-const int shadowcolor1Format = RG32F;
+const int shadowcolor1Format = R32UI;
 
 const bool colortex3Clear = false;
 const bool colortex9Clear = false;
@@ -54,7 +54,7 @@ uniform sampler2D colortex15;
 
 uniform sampler2D shadowtex1;
 uniform usampler2D shadowcolor0;
-// uniform sampler2D shadowcolor1;
+uniform usampler2D shadowcolor1;
 
 uniform vec2 invWidthHeight;
 
@@ -146,10 +146,24 @@ void main()
     //     if ((iuv.x >> 2) == median_index) color = vec3(1.0, 0.0, 0.0);
     // }
 
-    if (iuv.x < 512 && iuv.y < 256)
+    // if (iuv.x < 2048 && iuv.y < 1024)
+    // {
+    //     uint e = texelFetch(shadowcolor0, iuv, 0).r;
+    //     uint d;
+    //     vec3 c = unpackUint6Unorm3x6(e, d);
+    //     if (d == 0) {
+    //         color = c;
+    //     } else if (d >= 63) {
+    //         color = vec3(1.0);
+    //     } else {
+    //         color = mix(vec3(0.0, 1.0, 0.0), vec3(1.0, 0.0, 0.0), clamp(float(d) / 20.0, 0.0, 1.0));
+    //     }
+    // }
+
+    if (iuv.x < 256 && iuv.y < 128)
     {
-        color = vec3(float(texelFetch(shadowcolor0, ivec2(iuv.x >> 1, 0), 0).r) < iuv.y * 2);
-        if ((iuv.x >> 1) == median_index) color = vec3(1.0, 0.0, 0.0);
+        color = vec3(float(texelFetch(shadowcolor0, ivec2(iuv.x, 0), 0).r) < iuv.y * 5);
+        if ((iuv.x) == median_index) color = vec3(1.0, 0.0, 0.0);
     }
 
     gl_FragColor = vec4(color, 1.0);

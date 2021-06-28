@@ -40,34 +40,9 @@ bool voxIsTransparent(uint d) { return (d >> 29) == 6; }
 bool voxIsTranslucent(uint d) { return (d >> 29) == 7; }
 
 bool voxIsEmissive(uint d) { return (d & (1 << 28)) > 0; }
+bool voxIsEmpty(uint d) { return (d & 0xFF03FFFF) == 0; }
 
-uint getVoxelData(ivec3 volumePos, out bool terminate)
-{
-    ivec2 planar_pos = volume2planar(volumePos + ivec3(volume_width, volume_depth, volume_height) / 2, 0);
-
-    if (planar_pos == ivec2(-1))
-    {
-        terminate = true;
-        return 0;
-    }
-
-    uint d = texelFetch(shadowcolor0, planar_pos, 0).r;
-
-    terminate = false;
-    return d;
-}
-
-uint getVoxelDataLight(ivec3 volumePos, int lod)
-{
-    ivec2 planar_pos = volume2planar(volumePos, lod);
-
-    if (planar_pos == ivec2(-1)) return 0;
-
-    int voffset = int(floor(shadowMapResolution * (1.0 - pow(0.5, lod))));
-    int hoffset = (lod > 0) ? shadowMapResolution / 2 : 0;
-
-    return texelFetch(shadowcolor0, planar_pos + ivec2(hoffset, voffset), 0).r;
-}
+// int step_count;
 
 bool voxel_march(vec3 rayPos, vec3 rayDir, float tMax, out vec3 hitNormal, out vec3 hitPos, out uint data, out vec3 tint)
 {
@@ -83,70 +58,86 @@ bool voxel_march(vec3 rayPos, vec3 rayDir, float tMax, out vec3 hitNormal, out v
 	float res = -1.0;
 	vec3 mm = vec3(0.0);
     float t = 0.0;
+
+    int skip_count = 0;
+
 	for(int i = 0; i < MAX_RAY_STEPS; i++) 
 	{
-        bool terminate;
-        data = getVoxelData(ivec3(pos), terminate);
-
-        if (terminate) return false;
-
-        if (voxIsTranslucent(data))
+        ivec2 planar_pos = volume2planar(ivec3(pos) + ivec3(volume_width, volume_depth, volume_height) / 2);
+        
+        if (planar_pos == ivec2(-1)) return false;
+        
+        if (skip_count == 0)
         {
-            tint *= fromGamma(unpackUnorm4x8(data).rgb) * 0.5 + 0.5;
+            data = texelFetch(shadowcolor0, planar_pos, 0).r;
+
+            uint enc_distance;
+            vec3 c = unpackUint6Unorm3x6(data, enc_distance);
+
+            if (voxIsTranslucent(data))
+            {
+                tint *= fromGamma(unpackUnorm4x8(data).rgb) * 0.5 + 0.5;
+            }
+            else if (!(voxIsTransparent(data) || voxIsEmpty(data)))
+            {
+                vec3 bbox_min, bbox_max;
+
+                bool do_bbox_isect = false;
+
+                if (voxIsBottomSlab(data))
+                {
+                    bbox_min = pos;
+                    bbox_max = pos + vec3(1.0, 0.5, 1.0);
+                    do_bbox_isect = true;
+                }
+
+                if (voxIsTopSlab(data))
+                {
+                    bbox_min = pos + vec3(0.0, 0.5, 0.0);
+                    bbox_max = pos + vec3(1.0, 1.0, 1.0);
+                    do_bbox_isect = true;
+                }
+
+                if (voxIsSphere(data))
+                {
+                    bbox_min = pos + vec3(0.3);
+                    bbox_max = pos + vec3(0.7);
+                    do_bbox_isect = true;
+                }
+
+                if (voxIsSheet(data))
+                {
+                    bbox_min = pos;
+                    bbox_max = pos + vec3(1.0, 0.1, 1.0);
+                    do_bbox_isect = true;
+                }
+
+                if (voxIsColumn(data))
+                {
+                    bbox_min = pos + vec3(0.4, 0.0, 0.4);
+                    bbox_max = pos + vec3(0.6, 1.0, 0.6);
+                    do_bbox_isect = true;
+                }
+
+                if (do_bbox_isect)
+                {
+                    if (intersect_bbox(rayPos, ri, bbox_min, bbox_max, t)) res = 1.0;
+                }
+                else
+                {
+                    intersect_bbox(rayPos, ri, pos, pos + vec3(1.0), t);
+                    res = 1.0;
+                }
+            } else {
+                skip_count = min(63, int(enc_distance));
+            }
+
+            if (res > 0.0) break;
+
+            // step_count += 1;
         }
-        else if (!(voxIsTransparent(data) || data == 0))
-        {
-            vec3 bbox_min, bbox_max;
 
-            bool do_bbox_isect = false;
-
-            if (voxIsBottomSlab(data))
-            {
-                bbox_min = pos;
-                bbox_max = pos + vec3(1.0, 0.5, 1.0);
-                do_bbox_isect = true;
-            }
-
-            if (voxIsTopSlab(data))
-            {
-                bbox_min = pos + vec3(0.0, 0.5, 0.0);
-                bbox_max = pos + vec3(1.0, 1.0, 1.0);
-                do_bbox_isect = true;
-            }
-
-            if (voxIsSphere(data))
-            {
-                bbox_min = pos + vec3(0.3);
-                bbox_max = pos + vec3(0.7);
-                do_bbox_isect = true;
-            }
-
-            if (voxIsSheet(data))
-            {
-                bbox_min = pos;
-                bbox_max = pos + vec3(1.0, 0.1, 1.0);
-                do_bbox_isect = true;
-            }
-
-            if (voxIsColumn(data))
-            {
-                bbox_min = pos + vec3(0.4, 0.0, 0.4);
-                bbox_max = pos + vec3(0.6, 1.0, 0.6);
-                do_bbox_isect = true;
-            }
-
-            if (do_bbox_isect)
-            {
-                if (intersect_bbox(rayPos, ri, bbox_min, bbox_max, t)) res = 1.0;
-            }
-            else
-            {
-                intersect_bbox(rayPos, ri, pos, pos + vec3(1.0), t);
-                res = 1.0;
-            }
-        }
-
-        if (res > 0.0) break;
+        skip_count = max(0, skip_count - 1);
     
 		mm = step(dis.xyz, dis.yzx) * step(dis.xyz, dis.zxy);
 		dis += mm * rs * ri;

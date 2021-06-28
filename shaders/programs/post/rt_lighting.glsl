@@ -223,14 +223,17 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
         {
             bool vox_emmisive = voxIsEmissive(vox_data);
 
-            mat.albedo = fromGamma(unpackUnorm4x8(vox_data).rgb);
+            uint enc_distance;
+            vec3 c = unpackUint6Unorm3x6(vox_data, enc_distance);
+
+            mat.albedo = c;
             mat.lmcoord = vec2(0.0);
             mat.roughness = 0.9;
             mat.metalic = 0.0;
             mat.flag = vox_emmisive ? -1.0 : 0.0;
             mat.view_normal = mat3(gbufferModelView) * vox_hit_normal;
 
-            if (vox_emmisive) mat.albedo *= 5.0;
+            if (vox_emmisive) mat.albedo *= 2.0;
 
             hit_iuv = ivec2(-1);
         }
@@ -332,6 +335,9 @@ void main()
         z1 = z2 = z3 = z4 = uint(texelFetch(noisetex, iuv_orig & 0xFF, 0).r * 65535.0) ^ uint(frameCounter % 0xFFFF);
 // #endif
         getRand();
+
+        // step_count = 0;
+
 
         vec3 proj_pos = getProjPos(uv, depth);
         vec3 view_pos = proj2view(proj_pos);
@@ -472,6 +478,8 @@ void main()
 
         if (isnan(color.r) || isnan(color.g) || isnan(color.b)) color = vec3(0.0);
         color = clamp(color, vec3(1e-5), vec3(1e4));
+
+        // color = mix(vec3(0.0, 0.0, 1.0), vec3(1.0, 0.0, 0.0), float(step_count) / 64.0);
 
         imageStore(colorimg5, iuv_orig, vec4(color, 1.0));
     }

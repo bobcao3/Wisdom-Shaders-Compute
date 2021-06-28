@@ -91,8 +91,8 @@ void main() {
         int voffset = 0;
         int vheight = shadowMapResolution;
 
-        ivec3 volume_pos = getVolumePos(world_pos_center, cameraPosition, 0);
-        ivec2 planar_pos = volume2planar(volume_pos, 0);
+        ivec3 volume_pos = getVolumePos(world_pos_center, cameraPosition);
+        ivec2 planar_pos = volume2planar(volume_pos);
 
         vec4 texture_sample = texture(tex, mc_midTexCoord.st);
 
@@ -106,7 +106,7 @@ void main() {
 
         uint hardcode = (uint(mc_Entity.x) >> 8) & 0x7;
 
-        if ((uint(mc_Entity.x) & 0x1) > 0) tileColor *= 0.2;
+        if ((uint(mc_Entity.x) & 0x1) > 0) tileColor *= 0.5;
 
         if (hardcode == 1)
             tileColor = vec3(0.9, 0.95, 1.0);
@@ -121,28 +121,7 @@ void main() {
 
         flag |= packUnorm4x8(vec4(tileColor, 0.0)) & 0xFFFFFF;
 
-        //imageStore(shadowcolorimg0, planar_pos, uvec4(flag, 0, 0, 0));
         imageAtomicMax(shadowcolorimg0, planar_pos, flag);
-
-        /*
-
-        int largest_offset = int(max(abs(world_pos_center.x), max(abs(world_pos_center.y), abs(world_pos_center.z))));
-
-        for (int i = 1; i < 9; i++)
-        {
-            vheight = vheight >> 1;
-            voffset += vheight;
-
-            ivec3 volume_pos = getVolumePos(world_pos_center, cameraPosition, i);
-    
-            ivec2 planar_pos = volume2planar(volume_pos, i);
-            imageStore(shadowcolorimg0, planar_pos + ivec2(0, voffset), uvec4(1));
-
-            #ifdef DIRECT_VOXEL_LIGHTING
-            if (mc_Entity.x >= 9200 && largest_offset < DIRECT_LIGHTING_RADIUS) imageAtomicAdd(shadowcolorimg0, planar_pos + ivec2(shadowMapResolution / 2, voffset), 1);
-            #endif
-        }
-        */
     }
 
     gl_Position = gl_ProjectionMatrix * shadow_view_pos;

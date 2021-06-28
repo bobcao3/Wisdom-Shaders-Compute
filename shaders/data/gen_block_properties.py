@@ -73,7 +73,13 @@ with open('blocks.txt') as f:
             if h == line:
                 hardcode = hardcodes[h]
         # Add into list
-        if "slab" in line:
+        if line == "minecraft:furnace":
+            add_block(shape, 0, hardcode, line, "lit=false")
+            add_block(shape, 1, hardcode, line, "lit=true")
+        elif line == "minecraft:redstone_lamp":
+            add_block(shape, 0, hardcode, line, "lit=false")
+            add_block(shape, 1, hardcode, line, "lit=true")
+        elif "slab" in line:
             add_block(shape_bottom_slab, emissive, hardcode, line, "type=bottom")
             add_block(shape_top_slab, emissive, hardcode, line, "type=top")
         elif "stair" in line:

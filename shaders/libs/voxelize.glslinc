@@ -10,22 +10,16 @@ const int volume_depth_grid_height = (shadowMapResolution / volume_height / 2);
 
 const int volume_depth = (shadowMapResolution / volume_width) * (shadowMapResolution / volume_height) / 2;
 
-ivec3 getVolumePos(vec3 world_pos, vec3 world_camera_pos, int lod)
+ivec3 getVolumePos(vec3 world_pos, vec3 world_camera_pos)
 {
-    int stride = 1 << lod;
     return ivec3(floor(world_pos + mod(world_camera_pos, 1.0))) + ivec3(volume_width, volume_depth, volume_height) / 2;
 }
 
-ivec2 volume2planar(ivec3 pos, int lod)
+ivec2 volume2planar(ivec3 pos)
 {
-    int stride = 1 << lod;
-
     if (pos.x < 0 || pos.x >= volume_width || pos.y < 0 || pos.y >= volume_depth || pos.z < 0 || pos.z >= volume_height) return ivec2(-1);
 
-    // pos /= stride;
-    pos = pos >> lod;
-
-    ivec2 base = ivec2((pos.y % (volume_depth_grid_width)) * volume_width / stride, (pos.y / (volume_depth_grid_width)) * volume_height / stride);
+    ivec2 base = ivec2((pos.y % (volume_depth_grid_width)) * volume_width, (pos.y / (volume_depth_grid_width)) * volume_height);
     ivec2 uv = base + pos.xz;
 
     return uv;

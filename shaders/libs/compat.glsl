@@ -218,6 +218,22 @@ vec4 pow8(vec4 c)
     return t * t;
 }
 
+uint packUint6Unorm3x6(uint v, vec3 c)
+{
+    const vec3 mult = vec3((1 << 6) - 1, (1 << 6) - 1, (1 << 6) - 1);
+    uvec3 enc = uvec3(clamp(c, vec3(0.0), vec3(1.0)) * mult);
+    v = min(v, (1 << 6) - 1);
+    return (v << 18) | (enc.r << 12) | (enc.g << 6) | (enc.b);
+}
+
+vec3 unpackUint6Unorm3x6(uint e, out uint v)
+{
+    v = (e >> 18) & 0x3F;
+    const vec3 mult = 1.0 / vec3((1 << 6) - 1, (1 << 6) - 1, (1 << 6) - 1);
+    uvec3 enc = uvec3((e >> 12) & 0x3F, (e >> 6) & 0x3F, (e) & 0x3F);
+    return vec3(enc) * mult;
+}
+
 #ifdef SUPPORT_HALF
 float16_t L1dist(f16vec2 v)
 {
