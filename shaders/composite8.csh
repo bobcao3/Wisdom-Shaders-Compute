@@ -104,28 +104,10 @@ void main()
 
         if (texelFetch(colortex7, iuv, 0).a >= 0.0)
         {
-            vec3 indirect = vec3(0.0);
-            float weight = 0.0001;
-            float linear_depth = linearizeDepth(depth);
-
-            for (int i = -1; i <= 1; i++)
-            {
-                for (int j = -1; j <= 1; j++)
-                {
-                    vec3 sample_normal = texelFetch(colortex7, iuv + ivec2(i * 2, j * 2), 0).rgb;
-                    float sample_depth = linearizeDepth(texelFetch(colortex4, (iuv / 2) + ivec2(i, j), 0).r);
-                    float sample_weight = gaussian[i + 2] * gaussian[j + 2]
-                        * pow3(abs(dot(sample_normal, world_normal)))
-                        * exp(-abs(sample_depth - linear_depth) / max(0.01, linear_depth) * 128);
-                    indirect += texelFetch(colortex5, iuv / 2 + ivec2(i, j), 0).rgb * sample_weight;
-                    weight += sample_weight;
-                }
-            }
-
-            indirect /= weight;
+            vec3 indirect = texelFetch(colortex5, iuv, 0).rgb;
 
             vec3 integrated_brdf = IntegratedPolynomial(F0, roughness, abs(dot(-view_dir, view_normal)));
-            color += integrated_brdf * indirect;
+            color += indirect;
         }
 
         // if (iuv.x <= 256 && iuv.y <= 256)

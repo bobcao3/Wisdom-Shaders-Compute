@@ -127,11 +127,9 @@ void main()
     miduv = mc_midTexCoord.st;
     bound_uv = uv;
 
-    int blockId = int(mc_Entity.x);
+    uint blockId = max(uint(mc_Entity.x) - 80000, 0) & 0xF;
 
-    if (blockId == 29 || blockId == 30 || blockId == 33)
-        flag = 1.0;
-    else if (blockId >= 9200 || lmcoord.x > 0.97)
+    if ((blockId & 0x1) > 0 || lmcoord.x > 0.965)
         flag = -1.0;
     else
         flag = 0.0;

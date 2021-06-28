@@ -1,7 +1,3 @@
-layout (local_size_x = 8, local_size_y = 8) in;
-
-const vec2 workGroupsRender = vec2(0.5f, 0.5f);
-
 uniform int frameCounter;
 uniform float aspectRatio;
 
@@ -40,7 +36,7 @@ uniform vec3 cameraPosition;
 
 uniform usampler2D shadowcolor0;
 
-#include "/libs/voxel_lighting.glsl"
+#include "/libs/voxel_raytracing.glsl"
 
 #define SSPT_RAYS 1 // [1 2 4 8 16]
 
@@ -131,7 +127,7 @@ float getSelectionPDF(int i, int j)
 }
 #endif
 
-bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir, vec3 world_pos, vec3 world_normal, bool refine, float vox_lmcoord_approx, out Material mat, out vec3 hit_view_pos, out vec3 hit_wpos, out ivec2 hit_iuv, out vec3 real_sampled_dir)
+bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir, vec3 world_pos, vec3 world_normal, bool refine, float vox_lmcoord_approx, out Material mat, out vec3 hit_view_pos, out vec3 hit_wpos, out ivec2 hit_iuv, out vec3 real_sampled_dir, out vec3 transmission)
 {
 // #if !defined(SPECULAR_PT) && defined(SPECULAR_ONLY)
 //     return false;
@@ -162,11 +158,11 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
         // Confirm SSR
         if (max(dot(t_real_sampled_dir, sample_dir), 0.0) > 0.9 && t_hit_proj_pos.z < 1.0)
         {
-            hit = true;
-            hit_proj_pos = t_hit_proj_pos;
-            hit_view_pos = t_hit_view_pos;
-            hit_wpos = t_hit_wpos;
-            real_sampled_dir = t_real_sampled_dir;
+            // hit = true;
+            // hit_proj_pos = t_hit_proj_pos;
+            // hit_view_pos = t_hit_view_pos;
+            // hit_wpos = t_hit_wpos;
+            // real_sampled_dir = t_real_sampled_dir;
         }
     }
 
@@ -175,11 +171,12 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
     bool vox_hit = false;
     vec3 vox_hit_normal;
     uint vox_data;
+    vec3 tint = vec3(1.0);
 
     // Voxel ray tracing
     if (!hit)
     {
-        vox_hit = voxel_march(world_pos + world_normal * 0.05, world_sample_dir, 200.0, vox_hit_normal, hit_wpos, vox_data);
+        vox_hit = voxel_march(world_pos + world_normal * 0.05, world_sample_dir, 200.0, vox_hit_normal, hit_wpos, vox_data, tint);
         hit_view_pos = (gbufferModelView * vec4(hit_wpos, 1.0)).rgb;
         real_sampled_dir = sample_dir;
         hit = vox_hit;
@@ -206,15 +203,17 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
                     (vox_data & (1 << 30)) > 0 &&
                     abs((t_hit_view_pos.z - hit_view_pos.z) / hit_view_pos.z) < 0.05
                 ) {
-                    vox_hit = false;
-                    hit_proj_pos = t_hit_proj_pos;
-                    hit_view_pos = t_hit_view_pos;
-                    hit_wpos = t_hit_wpos;
-                    real_sampled_dir = t_real_sampled_dir;
+                    // vox_hit = false;
+                    // hit_proj_pos = t_hit_proj_pos;
+                    // hit_view_pos = t_hit_view_pos;
+                    // hit_wpos = t_hit_wpos;
+                    // real_sampled_dir = t_real_sampled_dir;
                 }
             }
         }
     }
+
+    transmission = tint;
 
     if (!hit) return false;
 
@@ -224,10 +223,10 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
 
         if (vox_hit)
         {
-            bool vox_emmisive = (vox_data & (1 << 29)) > 0;
+            bool vox_emmisive = voxIsEmissive(vox_data);
 
             mat.albedo = fromGamma(unpackUnorm4x8(vox_data).rgb);
-            mat.lmcoord = vec2(0.0, pow(vox_lmcoord_approx, 5.0));
+            mat.lmcoord = vec2(0.0);
             mat.roughness = 0.9;
             mat.metalic = 0.0;
             mat.flag = vox_emmisive ? -1.0 : 0.0;
@@ -258,9 +257,15 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
 
 void main()
 {
-    ivec2 iuv = ivec2(gl_GlobalInvocationID.xy) * 2;
     ivec2 iuv_orig = ivec2(gl_GlobalInvocationID.xy);
+
+#ifdef FULL_RES
+    ivec2 iuv = ivec2(gl_GlobalInvocationID.xy);
+    vec2 uv = (vec2(iuv) + 0.5) * invWidthHeight;
+#else
+    ivec2 iuv = ivec2(gl_GlobalInvocationID.xy) * 2;
     vec2 uv = (vec2(iuv) + 1.0) * invWidthHeight;
+#endif
 
     // float depth = texelFetch(colortex4, iuv_orig, 0).r;
     float depth = texelFetch(depthtex0, iuv, 0).r;
@@ -379,7 +384,7 @@ void main()
 #endif
 
 #ifdef SPECULAR_ONLY
-            if (roughness > 0.6) continue;
+            if (roughness > 0.2) continue;
             roughness = pow2(roughness);
             sample_dir = ImportanceSampleBeckmann(rand2d, view_normal, -view_dir, roughness, pdf);
             // selectPdf *= pdf;
@@ -402,11 +407,12 @@ void main()
             float contribute_rad = 0.0;
             ivec2 hit_iuv;
             vec3 real_sampled_dir;
+            vec3 transmission;
 
-            if (traceRayHybrid(iuv, view_pos, view_normal, sample_dir, world_pos, world_normal, true, lmcoord.y, mat, hit_view_pos, hit_wpos, hit_iuv, real_sampled_dir))
+            if (traceRayHybrid(iuv, view_pos, view_normal, sample_dir, world_pos, world_normal, true, lmcoord.y, mat, hit_view_pos, hit_wpos, hit_iuv, real_sampled_dir, transmission))
             {
                 // Hit
-                sample_rad = getLighting(mat, real_sampled_dir, hit_view_pos, hit_wpos, vec3(1.0));
+                sample_rad = getLighting(mat, real_sampled_dir, hit_view_pos, hit_wpos, vec3(1.0)) * transmission;
 
 #ifdef SPECULAR_ONLY
                 if (hit_iuv != ivec2(-1))
@@ -431,7 +437,7 @@ void main()
 
                 vec3 skybox_color = texture(colortex3, skybox_uv).rgb;
 
-                sample_rad = skybox_color;
+                sample_rad = skybox_color * transmission;
            
                 contribute_rad = max(sample_rad.r, max(sample_rad.g, sample_rad.b)) * 0.1;
             }
@@ -440,7 +446,7 @@ void main()
 #ifdef SPECULAR_ONLY
             const bool do_specular = true;
 #else
-            const bool do_specular = false;
+            const bool do_specular = roughness > 0.2;
 #endif
             vec3 _kd;
 

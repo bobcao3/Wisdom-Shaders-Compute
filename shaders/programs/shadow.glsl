@@ -98,14 +98,9 @@ void main() {
 
         uint flag = 0;
 
-        // [31: Transparent | 30: Opaque | 29: Emmisive | 28~27: Reserved | 26~24: Priority | 23:0 Color]
+        // [31~28: Flags | 28~27: ? | 26~24: Priority | 23:0 Color]
 
-        if (mc_Entity.x >= 29 && mc_Entity.x <= 33)
-            flag |= (1 << 31);
-        else
-            flag |= (1 << 30);
-
-        if (mc_Entity.x >= 9200) flag |= (1 << 29);
+        flag = (max(uint(mc_Entity.x) - 80000, 0) & 0xF) << 28;
 
         uint priority = uint(sign(gl_Normal.y) + 1);
 

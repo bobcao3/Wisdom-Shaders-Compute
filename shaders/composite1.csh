@@ -2,8 +2,13 @@
 
 #include "/libs/compat.glsl"
 
+layout (local_size_x = 8, local_size_y = 8) in;
+
+const vec2 workGroupsRender = vec2(1.0f, 1.0f);
+
 #define SPECULAR_PT
-#define SPLIT_SUM
+#define FULL_RES
+// #define SPLIT_SUM
 
 #ifdef SPECULAR_PT
 #endif

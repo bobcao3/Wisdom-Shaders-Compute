@@ -1,6 +1,6 @@
 #include "/libs/compat.glsl"
 
-layout (local_size_x = 16, local_size_y = 16) in;
+layout (local_size_x = 16, local_size_y = 8) in;
 
 const vec2 workGroupsRender = vec2(0.55f, 0.55f);
 
@@ -69,17 +69,13 @@ void main()
         const int local_size = int(gl_WorkGroupSize.x * gl_WorkGroupSize.y);
         const int block_size = int((gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4));
 
-        ivec2 local_xy = ivec2((index % padded_width) - 2, (index / padded_width) - 2);
-        ivec2 pad_uv = group_base + local_xy * STRIDE;
-        load(local_xy, pad_uv);
-
-        if (gl_LocalInvocationIndex < block_size - local_size)
+        while (index < block_size)
         {
-            index += local_size;
-
             ivec2 local_xy = ivec2((index % padded_width) - 2, (index / padded_width) - 2);
             ivec2 pad_uv = group_base + local_xy * STRIDE;
             load(local_xy, pad_uv);
+
+            index += local_size;
         }
     }
 
