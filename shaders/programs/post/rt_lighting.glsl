@@ -141,30 +141,8 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
 
     // Hit info
     bool hit = false;
-
+    ivec2 hit_pos;
     vec3 hit_proj_pos;
-
-    // SSR
-    ivec2 hit_pos = raytrace(view_pos + view_normal * 0.05, iuv, sample_dir, stride, stride_multiplier, zThickness, lod, refine);
-
-    if (hit_pos != ivec2(-1) && hit_pos != iuv)
-    {
-        vec3 t_hit_proj_pos = getProjPos(hit_pos);
-        vec3 t_hit_view_pos = proj2view(t_hit_proj_pos);
-        vec3 t_hit_wpos = view2world(t_hit_view_pos);
-
-        vec3 t_real_sampled_dir = normalize(t_hit_view_pos - view_pos);
-
-        // Confirm SSR
-        if (max(dot(t_real_sampled_dir, sample_dir), 0.0) > 0.9 && t_hit_proj_pos.z < 1.0)
-        {
-            // hit = true;
-            // hit_proj_pos = t_hit_proj_pos;
-            // hit_view_pos = t_hit_view_pos;
-            // hit_wpos = t_hit_wpos;
-            // real_sampled_dir = t_real_sampled_dir;
-        }
-    }
 
     // Voxel ray tracing info
     vec3 world_sample_dir = mat3(gbufferModelViewInverse) * sample_dir;
@@ -174,7 +152,6 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
     vec3 tint = vec3(1.0);
 
     // Voxel ray tracing
-    if (!hit)
     {
         vox_hit = voxel_march(world_pos + world_normal * 0.05, world_sample_dir, 200.0, vox_hit_normal, hit_wpos, vox_data, tint);
         hit_view_pos = (gbufferModelView * vec4(hit_wpos, 1.0)).rgb;
@@ -200,15 +177,39 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
                 if (
                     abs(dot(t_real_sampled_dir, sample_dir)) > 0.8 &&
                     t_hit_proj_pos.z < 1.0 &&
-                    (vox_data & (1 << 30)) > 0 &&
                     abs((t_hit_view_pos.z - hit_view_pos.z) / hit_view_pos.z) < 0.05
                 ) {
-                    // vox_hit = false;
-                    // hit_proj_pos = t_hit_proj_pos;
-                    // hit_view_pos = t_hit_view_pos;
-                    // hit_wpos = t_hit_wpos;
-                    // real_sampled_dir = t_real_sampled_dir;
+                    vox_hit = false;
+                    hit_proj_pos = t_hit_proj_pos;
+                    hit_view_pos = t_hit_view_pos;
+                    hit_wpos = t_hit_wpos;
+                    real_sampled_dir = t_real_sampled_dir;
                 }
+            }
+        }
+    }
+
+    // SSR
+    if (!hit)
+    {
+        hit_pos = raytrace(view_pos + view_normal * 0.05, iuv, sample_dir, stride, stride_multiplier, zThickness, lod, refine);
+
+        if (hit_pos != ivec2(-1) && hit_pos != iuv)
+        {
+            vec3 t_hit_proj_pos = getProjPos(hit_pos);
+            vec3 t_hit_view_pos = proj2view(t_hit_proj_pos);
+            vec3 t_hit_wpos = view2world(t_hit_view_pos);
+
+            vec3 t_real_sampled_dir = normalize(t_hit_view_pos - view_pos);
+
+            // Confirm SSR
+            if (max(dot(t_real_sampled_dir, sample_dir), 0.0) > 0.9 && t_hit_proj_pos.z < 1.0 && texelFetch(colortex11, hit_pos, 0).a < 0.01)
+            {
+                hit = true;
+                hit_proj_pos = t_hit_proj_pos;
+                hit_view_pos = t_hit_view_pos;
+                hit_wpos = t_hit_wpos;
+                real_sampled_dir = t_real_sampled_dir;
             }
         }
     }
@@ -231,6 +232,8 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
             mat.metalic = 0.0;
             mat.flag = vox_emmisive ? -1.0 : 0.0;
             mat.view_normal = mat3(gbufferModelView) * vox_hit_normal;
+
+            if (vox_emmisive) mat.albedo *= 5.0;
 
             hit_iuv = ivec2(-1);
         }
@@ -384,7 +387,7 @@ void main()
 #endif
 
 #ifdef SPECULAR_ONLY
-            if (roughness > 0.2) continue;
+            if (roughness > 0.5) continue;
             roughness = pow2(roughness);
             sample_dir = ImportanceSampleBeckmann(rand2d, view_normal, -view_dir, roughness, pdf);
             // selectPdf *= pdf;
@@ -446,7 +449,7 @@ void main()
 #ifdef SPECULAR_ONLY
             const bool do_specular = true;
 #else
-            const bool do_specular = roughness > 0.2;
+            const bool do_specular = roughness > 0.5;
 #endif
             vec3 _kd;
 

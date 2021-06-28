@@ -94,13 +94,26 @@ void main() {
         ivec3 volume_pos = getVolumePos(world_pos_center, cameraPosition, 0);
         ivec2 planar_pos = volume2planar(volume_pos, 0);
 
-        vec3 tileColor = texture(tex, mc_midTexCoord.st).rgb * color.rgb;
+        vec4 texture_sample = texture(tex, mc_midTexCoord.st);
+
+        vec3 tileColor = texture_sample.a < 0.1 ? color.rgb : texture_sample.rgb * color.rgb;
 
         uint flag = 0;
 
         // [31~28: Flags | 28~27: ? | 26~24: Priority | 23:0 Color]
 
-        flag = (max(uint(mc_Entity.x) - 80000, 0) & 0xF) << 28;
+        flag = (uint(mc_Entity.x) & 0xFF) << 28;
+
+        uint hardcode = (uint(mc_Entity.x) >> 8) & 0x7;
+
+        if ((uint(mc_Entity.x) & 0x1) > 0) tileColor *= 0.2;
+
+        if (hardcode == 1)
+            tileColor = vec3(0.9, 0.95, 1.0);
+        else if (hardcode == 2)
+            tileColor = vec3(0.9, 0.6, 0.2);
+        else if (hardcode == 3)
+            tileColor = vec3(0.1, 0.2, 0.3);
 
         uint priority = uint(sign(gl_Normal.y) + 1);
 

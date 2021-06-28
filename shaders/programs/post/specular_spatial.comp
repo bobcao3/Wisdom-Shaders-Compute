@@ -1,6 +1,6 @@
 #include "/libs/compat.glsl"
 
-layout (local_size_x = 20, local_size_y = 20) in;
+layout (local_size_x = 16, local_size_y = 16) in;
 
 const vec2 workGroupsRender = vec2(1.0f, 1.0f);
 
@@ -14,13 +14,13 @@ uniform sampler2D depthtex0;
 layout (r11f_g11f_b10f) uniform image2D colorimg5;
 
 float16_t gaussian[] = float16_t[] (
-    0.08650569214819082, 0.1137066467902003, 0.13397671175015194, 0.14150674744095673, 0.13397671175015194, 0.1137066467902003, 0.08650569214819082
+    0.06136, 0.24477, 0.38774, 0.24477, 0.06136
 );
 
 uniform float viewWidth;
 uniform float viewHeight;
 
-const int radius = 3;
+const int radius = 2;
 const int diameter = radius * 2;
 
 int getIndex(ivec2 uv)
