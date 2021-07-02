@@ -42,9 +42,9 @@ void load(ivec2 local_xy, ivec2 iuv)
     ivec2 sample_uv = clamp(iuv, ivec2(0), ivec2(floor(viewWidth * 0.5) - 1, floor(viewHeight * 0.5) - 1));
 
     f16vec3 sample_normal = f16vec3(texelFetch(colortex7, sample_uv * 2, 0).rgb);
-    // f16vec3 sample_albedo = texelFetch(colortex6, sample_uv * 2, 0).rgb;
-    f16vec3 sample_color = f16vec3(imageLoad(colorimg5, sample_uv).rgb);
-    float16_t sample_variance = float16_t(sqrt(imageLoad(colorimg5, sample_uv + ivec2(viewWidth * 0.5, 0.0)).r));
+    // f16vec3 sample_albedo = texelFetch(colortex6, (sample_uv + IN_OFFSET) * 2, 0).rgb;
+    f16vec3 sample_color = f16vec3(imageLoad(colorimg5, (sample_uv + IN_OFFSET)).rgb);
+    float16_t sample_variance = float16_t(imageLoad(colorimg5, (sample_uv + IN_OFFSET) + ivec2(viewWidth * 0.5, 0.0)).r);
 
     // lds_albedo[getIndex(local_xy + 2)] = sample_albedo;
     lds_colors[getIndex(local_xy + 2)] = sample_color;
@@ -87,6 +87,7 @@ void main()
     f16vec3 normal = lds_normals[getIndex(local_id)];
 
     f16vec3 color = f16vec3(0.0);
+    f16vec3 color_backup = f16vec3(0.0);
     float16_t total_var = 0.0;
     float16_t weight = 0.0001;
 
@@ -116,17 +117,24 @@ void main()
 
             float16_t sample_weight = gaussian[i + 2] * gaussian[j + 2];
             sample_weight *= pow(max(float16_t(0.0), dot(normal, sample_normal)), float16_t(128.0));
-            sample_weight *= exp(-color_diff / max(2.0 * sample_var, 0.01));
+            sample_weight *= exp(-color_diff / max(sqrt(sample_var), 0.01));
             // sample_weight *= exp(-dot(sample_albedo, sample_albedo) * 20.0);
-            sample_weight *= exp(float16_t(-abs(sample_depth - center_depth) / max(0.03, center_depth) * 8.0));
+            sample_weight *= exp(float16_t(-abs(sample_depth - center_depth) / max(0.03, center_depth) * 16.0));
 
             color += sample_color * sample_weight;
+            color_backup += sample_color * gaussian[i + 2] * gaussian[j + 2];
             total_var += sample_var * pow2(sample_weight);
             weight += sample_weight;
         }
     }
 
-    imageStore(colorimg5, iuv, vec4(color / weight, 0.0));
-    imageStore(colorimg5, iuv + ivec2(viewWidth * 0.5, 0.0), vec4(total_var / pow2(weight)));
+    if (weight < 0.17)
+    {
+        color = color_backup;
+        weight = 1.0;
+    }
+
+    imageStore(colorimg5, iuv + OUT_OFFSET, vec4(color / weight, 0.0));
+    imageStore(colorimg5, iuv + ivec2(viewWidth * 0.5, 0.0) + OUT_OFFSET, vec4(total_var / pow2(weight)));
 
 }

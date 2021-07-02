@@ -4,9 +4,6 @@ layout (local_size_x = 16, local_size_y = 16) in;
 
 const vec2 workGroupsRender = vec2(1.0f, 1.0f);
 
-uniform sampler2D colortex0;
-uniform sampler2D colortex10;
-
 float gaussian[] = float[] (
     0.07515427803139076,
     0.12487059853370433,

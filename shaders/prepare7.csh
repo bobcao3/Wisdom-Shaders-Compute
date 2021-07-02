@@ -1,6 +1,6 @@
 #version 450 compatibility
 
-#define STRIDE 4
+#define STRIDE 2
 
 #define INPUT shadowcolorimg0
 #define OUTPUT shadowcolorimg1

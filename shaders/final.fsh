@@ -19,7 +19,6 @@ const int colortex9Format = R16F; // AO temporal
 const int colortex10Format = RGBA16F; // Color temporal (R11F_G11F_B10F for gameplay)
 const int colortex11Format = RGBA16F; // Color temporal
 const int colortex12Format = RGBA16F; // SSPT temporal
-const int colortex13Format = RGBA16F; // SSPT temporal
 
 const int shadowcolor0Format = R32UI;
 const int shadowcolor1Format = R32UI;
@@ -28,7 +27,6 @@ const bool colortex3Clear = false;
 const bool colortex9Clear = false;
 const bool colortex10Clear = false;
 const bool colortex12Clear = false;
-const bool colortex13Clear = false;
 
 const vec4 shadowcolor0ClearColor = vec4(0.0, 0.0, 0.0, 0.0);
 const vec4 shadowcolor1ClearColor = vec4(0.0, 0.0, 0.0, 0.0);
@@ -52,7 +50,7 @@ uniform sampler2D colortex11;
 
 uniform sampler2D colortex15;
 
-uniform sampler2D shadowtex1;
+uniform sampler2D shadowtex0;
 uniform usampler2D shadowcolor0;
 uniform usampler2D shadowcolor1;
 
@@ -146,19 +144,19 @@ void main()
     //     if ((iuv.x >> 2) == median_index) color = vec3(1.0, 0.0, 0.0);
     // }
 
-    // if (iuv.x < 2048 && iuv.y < 1024)
-    // {
-    //     uint e = texelFetch(shadowcolor0, iuv, 0).r;
-    //     uint d;
-    //     vec3 c = unpackUint6Unorm3x6(e, d);
-    //     if (d == 0) {
-    //         color = c;
-    //     } else if (d >= 63) {
-    //         color = vec3(1.0);
-    //     } else {
-    //         color = mix(vec3(0.0, 1.0, 0.0), vec3(1.0, 0.0, 0.0), clamp(float(d) / 20.0, 0.0, 1.0));
-    //     }
-    // }
+    if (iuv.x < 2048 && iuv.y < 1024)
+    {
+        uint e = texelFetch(shadowcolor0, iuv, 0).r;
+        uint d;
+        vec3 c = unpackUint6Unorm3x6(e, d);
+        if (d == 0) {
+            color = c;
+        } else if (d >= 63) {
+            color = vec3(1.0);
+        } else {
+            color = mix(vec3(0.0, 1.0, 0.0), vec3(1.0, 0.0, 0.0), clamp(float(d) / 8.0, 0.0, 1.0));
+        }
+    }
 
     if (iuv.x < 256 && iuv.y < 128)
     {

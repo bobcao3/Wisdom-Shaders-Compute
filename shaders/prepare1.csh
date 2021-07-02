@@ -4,8 +4,6 @@
 
 layout (local_size_x = 32, local_size_y = 32) in;
 
-layout (r11f_g11f_b10f) uniform image2D colorimg3;
-
 const vec2 workGroupsRender = vec2(0.3f, 0.13f);
 
 #include "/libs/compat.glsl"

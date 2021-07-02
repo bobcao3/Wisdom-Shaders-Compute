@@ -222,7 +222,7 @@ uint packUint6Unorm3x6(uint v, vec3 c)
 {
     const vec3 mult = vec3((1 << 6) - 1, (1 << 6) - 1, (1 << 6) - 1);
     uvec3 enc = uvec3(clamp(c, vec3(0.0), vec3(1.0)) * mult);
-    v = min(v, (1 << 6) - 1);
+    v = min(v, 0x3F);
     return (v << 18) | (enc.r << 12) | (enc.g << 6) | (enc.b);
 }
 

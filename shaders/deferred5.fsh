@@ -136,8 +136,8 @@ void main()
             float ema_last = last_moments.x;
             float ema2_last = last_moments.y;
 
-            float ema = mix(ema_last, x, weight);
-            float ema2 = mix(ema2_last, pow2(x), weight);
+            float ema = ema_last * (history_length - 1.0) * weight + x * weight;
+            float ema2 = ema2_last * (history_length - 1.0) * weight + pow2(x) * weight;
             float emvar = abs(pow2(ema) - ema2);
 
             if (history_length < 8)
@@ -167,7 +167,7 @@ void main()
         }
         else
         {
-            color = mix(history.rgb, color, weight);
+            color = history.rgb * (history_length - 1.0) * weight + color * weight;
             temporal = color;
         }
 

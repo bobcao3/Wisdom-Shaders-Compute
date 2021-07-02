@@ -4,8 +4,6 @@
 
 layout (local_size_x = 4, local_size_y = 4) in;
 
-layout (r11f_g11f_b10f) uniform image2D colorimg3;
-
 const ivec3 workGroups = ivec3(1, 1, 1);
 
 #include "libs/compat.glsl"

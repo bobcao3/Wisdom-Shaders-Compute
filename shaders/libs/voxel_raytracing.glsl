@@ -20,7 +20,7 @@ bool intersect_bbox(vec3 o, vec3 invd, vec3 minp, vec3 maxp, out float t)
     return false;
 }
 
-const int MAX_RAY_STEPS = 64;
+const int MAX_RAY_STEPS = 128;
 
 // shape_cube = 0
 // shape_bottom_slab = 1
@@ -42,32 +42,32 @@ bool voxIsTranslucent(uint d) { return (d >> 29) == 7; }
 bool voxIsEmissive(uint d) { return (d & (1 << 28)) > 0; }
 bool voxIsEmpty(uint d) { return (d & 0xFF03FFFF) == 0; }
 
-// int step_count;
+int step_count;
 
 bool voxel_march(vec3 rayPos, vec3 rayDir, float tMax, out vec3 hitNormal, out vec3 hitPos, out uint data, out vec3 tint)
 {
     rayPos += mod(cameraPosition, 1.0);
 
     vec3 pos = floor(rayPos);
-	vec3 ri = 1.0 / rayDir;
 	vec3 rs = sign(rayDir);
+	vec3 ri = 1.0 / (rayDir + 1e-6 * rs);
 	vec3 dis = (pos - rayPos + 0.5 + rs * 0.5) * ri;
 
     tint = vec3(1.0);
 
-	float res = -1.0;
 	vec3 mm = vec3(0.0);
     float t = 0.0;
 
     int skip_count = 0;
+    int steps = 0;
 
-	for(int i = 0; i < MAX_RAY_STEPS; i++) 
+	while (steps < MAX_RAY_STEPS)
 	{
         ivec2 planar_pos = volume2planar(ivec3(pos) + ivec3(volume_width, volume_depth, volume_height) / 2);
         
-        if (planar_pos == ivec2(-1)) return false;
-        
-        if (skip_count == 0)
+        if (planar_pos == ivec2(-1)) break;
+
+        if (skip_count < 1)
         {
             data = texelFetch(shadowcolor0, planar_pos, 0).r;
 
@@ -76,7 +76,7 @@ bool voxel_march(vec3 rayPos, vec3 rayDir, float tMax, out vec3 hitNormal, out v
 
             if (voxIsTranslucent(data))
             {
-                tint *= fromGamma(unpackUnorm4x8(data).rgb) * 0.5 + 0.5;
+                tint *= c;
             }
             else if (!(voxIsTransparent(data) || voxIsEmpty(data)))
             {
@@ -121,33 +121,33 @@ bool voxel_march(vec3 rayPos, vec3 rayDir, float tMax, out vec3 hitNormal, out v
 
                 if (do_bbox_isect)
                 {
-                    if (intersect_bbox(rayPos, ri, bbox_min, bbox_max, t)) res = 1.0;
+                    if (intersect_bbox(rayPos, ri, bbox_min, bbox_max, t)) break;
                 }
                 else
                 {
                     intersect_bbox(rayPos, ri, pos, pos + vec3(1.0), t);
-                    res = 1.0;
+                    break;
                 }
-            } else {
-                skip_count = min(63, int(enc_distance));
             }
-
-            if (res > 0.0) break;
-
-            // step_count += 1;
+            
+            steps += 1;
+            
+            if (voxIsEmpty(data)) {
+                skip_count = min(30, int(enc_distance));
+            }
         }
 
-        skip_count = max(0, skip_count - 1);
-    
-		mm = step(dis.xyz, dis.yzx) * step(dis.xyz, dis.zxy);
-		dis += mm * rs * ri;
+        mm = step(dis.xyz, dis.yzx) * step(dis.xyz, dis.zxy);
+        dis += mm * rs * ri;
         pos += mm * rs;
+
+        skip_count--;
 	}
 
-    if (res <= 0.0) return false;
-	
-    t = t * res;
+    step_count = steps;
 
+    if (t == 0.0) return false;
+	
 	hitNormal = mm;
 	hitPos = rayPos + t * rayDir - mod(cameraPosition, 1.0);
 

@@ -107,7 +107,7 @@ void main()
             vec3 indirect = texelFetch(colortex5, iuv, 0).rgb;
 
             vec3 integrated_brdf = IntegratedPolynomial(F0, roughness, abs(dot(-view_dir, view_normal)));
-            color += indirect;
+            color = indirect;
         }
 
         // if (iuv.x <= 256 && iuv.y <= 256)

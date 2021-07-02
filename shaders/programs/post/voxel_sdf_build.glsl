@@ -42,7 +42,9 @@ void main()
 
     int stride = STRIDE;
 
+#ifndef ONE_STEP
     for (int i = 0; i < 2; i++)
+#endif
     {
         uint vox_top = getVox(voxel_pos + ivec3(0, stride, 0), offset);
         uint vox_bottom = getVox(voxel_pos + ivec3(0, -stride, 0), offset);

@@ -81,9 +81,9 @@ vec3 compute_lighting(ivec2 iuv, float depth)
     mat.view_normal = mat3(gbufferModelView) * normal_flag_encoded.rgb;
 
 #ifndef SSPT
-    vec3 ao = getAO(iuv, depth, albedo);
+    const vec3 ao = getAO(iuv, depth, albedo);
 #else
-    vec3 ao = vec3(1.0);
+    const vec3 ao = vec3(1.0);
 #endif
     
     color = getLighting(mat, normalize(view_pos), view_pos, world_pos, ao);

@@ -145,7 +145,7 @@ void main() {
     //gl_FragData[0] = color * texture(tex, uv);
     vec4 compColor = color * texture(tex, uv);
 
-    if (compColor.a < 0.1) discard;
+    if (compColor.a < 0.9) discard;
 }
 
 #endif

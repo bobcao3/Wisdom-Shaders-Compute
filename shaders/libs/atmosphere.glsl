@@ -120,6 +120,8 @@ vec2 densitiesMap(in vec2 uv)
 	return depth / Ls;
 }
 
+layout (r11f_g11f_b10f) uniform image2D colorimg3;
+
 vec2 getDensityFromMap(vec3 p, vec3 d)
 {
 	float h = max(0.0, length(p - C) - R0) / (Ra - R0);
@@ -134,7 +136,8 @@ vec2 getDensityFromMap(vec3 p, vec3 d)
 	uv.x = clamp(uv.x, 0.0, 0.25);
 
 	// return vec2(densitiesMap(uv));
-	return texture(colortex3, uv).xy;
+	// return texture(colortex3, uv).xy;
+	return imageLoad(colorimg3, ivec2(uv * vec2(viewWidth, viewHeight))).xy;
 }
 
 void inScatter(vec3 p, vec3 D, float radius, vec2 depth, vec2 des, out vec3 R, out vec3 M)

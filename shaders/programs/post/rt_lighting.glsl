@@ -187,29 +187,29 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
     }
 
     // SSR
-    if (!hit)
-    {
-        hit_pos = raytrace(view_pos + view_normal * 0.05, iuv, sample_dir, stride, stride_multiplier, zThickness, lod, refine);
+    // if (!hit)
+    // {
+    //     hit_pos = raytrace(view_pos + view_normal * 0.05, iuv, sample_dir, stride, stride_multiplier, zThickness, lod, refine);
 
-        if (hit_pos != ivec2(-1) && hit_pos != iuv)
-        {
-            vec3 t_hit_proj_pos = getProjPos(hit_pos);
-            vec3 t_hit_view_pos = proj2view(t_hit_proj_pos);
-            vec3 t_hit_wpos = view2world(t_hit_view_pos);
+    //     if (hit_pos != ivec2(-1) && hit_pos != iuv)
+    //     {
+    //         vec3 t_hit_proj_pos = getProjPos(hit_pos);
+    //         vec3 t_hit_view_pos = proj2view(t_hit_proj_pos);
+    //         vec3 t_hit_wpos = view2world(t_hit_view_pos);
 
-            vec3 t_real_sampled_dir = normalize(t_hit_view_pos - view_pos);
+    //         vec3 t_real_sampled_dir = normalize(t_hit_view_pos - view_pos);
 
-            // Confirm SSR
-            if (max(dot(t_real_sampled_dir, sample_dir), 0.0) > 0.9 && t_hit_proj_pos.z < 1.0)
-            {
-                hit = true;
-                hit_proj_pos = t_hit_proj_pos;
-                hit_view_pos = t_hit_view_pos;
-                hit_wpos = t_hit_wpos;
-                real_sampled_dir = t_real_sampled_dir;
-            }
-        }
-    }
+    //         // Confirm SSR
+    //         if (max(dot(t_real_sampled_dir, sample_dir), 0.0) > 0.9 && t_hit_proj_pos.z < 1.0)
+    //         {
+    //             hit = true;
+    //             hit_proj_pos = t_hit_proj_pos;
+    //             hit_view_pos = t_hit_view_pos;
+    //             hit_wpos = t_hit_wpos;
+    //             real_sampled_dir = t_real_sampled_dir;
+    //         }
+    //     }
+    // }
 
     transmission = tint;
 
@@ -336,9 +336,6 @@ void main()
 // #endif
         getRand();
 
-        // step_count = 0;
-
-
         vec3 proj_pos = getProjPos(uv, depth);
         vec3 view_pos = proj2view(proj_pos);
         vec3 world_pos = view2world(view_pos);
@@ -411,7 +408,6 @@ void main()
             vec3 hit_wpos;
             Material mat;
             vec3 sample_rad;
-            float contribute_rad = 0.0;
             ivec2 hit_iuv;
             vec3 real_sampled_dir;
             vec3 transmission;
@@ -427,8 +423,6 @@ void main()
                     sample_rad = max(sample_rad, vec3(texelFetch(colortex2, hit_iuv, 0).rgb));
                 }
 #endif
-
-                contribute_rad = max(sample_rad.r, max(sample_rad.g, sample_rad.b));
             } else {
                 // Skybox
                 vec2 skybox_uv = project_skybox2uv(normalize(mat3(gbufferModelViewInverse) * sample_dir));
@@ -445,8 +439,6 @@ void main()
                 vec3 skybox_color = texture(colortex3, skybox_uv).rgb;
 
                 sample_rad = skybox_color * transmission;
-           
-                contribute_rad = max(sample_rad.r, max(sample_rad.g, sample_rad.b)) * 0.1;
             }
 
 
@@ -470,7 +462,7 @@ void main()
             color += sample_rad;
 
 #ifdef RAY_GUIDING
-            contributions[gl_LocalInvocationID.x][gl_LocalInvocationID.y][i] = contribute_rad;
+            contributions[gl_LocalInvocationID.x][gl_LocalInvocationID.y][i] = dot(sample_rad, vec3(0.3, 0.5, 0.2));
 #endif
         }
 
@@ -479,7 +471,13 @@ void main()
         if (isnan(color.r) || isnan(color.g) || isnan(color.b)) color = vec3(0.0);
         color = clamp(color, vec3(1e-5), vec3(1e4));
 
-        // color = mix(vec3(0.0, 0.0, 1.0), vec3(1.0, 0.0, 0.0), float(step_count) / 64.0);
+        step_count = 0;
+        {
+            vec3 t0, t1, t3;
+            uint t2;
+            voxel_march(vec3(0.0), world_dir, 200.0, t0, t1, t2, t3);
+        }
+        color = vec3(float(step_count) / float(MAX_RAY_STEPS));
 
         imageStore(colorimg5, iuv_orig, vec4(color, 1.0));
     }

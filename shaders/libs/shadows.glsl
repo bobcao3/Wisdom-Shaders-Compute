@@ -15,7 +15,7 @@
 
 #include "/configs.glsl"
 
-uniform sampler2D shadowtex1;
+uniform sampler2D shadowtex0;
 
 float shadowStep(float s, float edge, float bias)
 {
@@ -29,10 +29,10 @@ float shadowTexSmooth(in vec3 spos, out float depth, float bias) {
     const vec2 uv_lower = floor(uv);
     const vec2 offset = uv - uv_lower;
 
-    const float d00 = texelFetchOffset(shadowtex1, ivec2(uv_lower), 0, ivec2(0, 0)).r;
-    const float d01 = texelFetchOffset(shadowtex1, ivec2(uv_lower), 0, ivec2(0, 1)).r;
-    const float d10 = texelFetchOffset(shadowtex1, ivec2(uv_lower), 0, ivec2(1, 0)).r;
-    const float d11 = texelFetchOffset(shadowtex1, ivec2(uv_lower), 0, ivec2(1, 1)).r;
+    const float d00 = texelFetchOffset(shadowtex0, ivec2(uv_lower), 0, ivec2(0, 0)).r;
+    const float d01 = texelFetchOffset(shadowtex0, ivec2(uv_lower), 0, ivec2(0, 1)).r;
+    const float d10 = texelFetchOffset(shadowtex0, ivec2(uv_lower), 0, ivec2(1, 0)).r;
+    const float d11 = texelFetchOffset(shadowtex0, ivec2(uv_lower), 0, ivec2(1, 1)).r;
 
     const float min_depth = min(min(d00, d01), min(d10, d11));
     const float max_depth = max(max(d00, d01), max(d10, d11));

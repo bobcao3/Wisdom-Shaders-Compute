@@ -1,58 +1,10 @@
-#define LIGHTING_SAMPLES 4 // [4 8 16]
+#define LIGHTING_SAMPLES 1 // [4 8 16]
 
-float oren_nayer(in vec3 v, in vec3 l, in vec3 n, in float r) {
-	float NdotL = clamp(dot(n, l), 0.0, 1.0);
-	float NdotV = clamp(dot(n, v), 0.0, 1.0);
+const mat3 make_coord_space(const vec3 n) {
+    const vec3 h = (n.y > 0.9) ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
 
-	float t = max(NdotL,NdotV);
-	float g = max(.0, dot(v - n * NdotV, l - n * NdotL));
-	float c = g/t - g*t;
-
-	float a = .285 / (r+.57) + .5;
-	float b = .45 * r / (r+.09);
-
-	return NdotL * (b * c + a);
-}
-
-vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
-	return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow5(1.0 - abs(cosTheta));
-}
-
-vec3 fresnelSchlick(float cosTheta, vec3 F0) {
-	return F0 + (1.0 - F0) * pow5(1.0 - cosTheta);
-}
-
-#define GeometrySchlickGGX(NdotV, k) (NdotV / (NdotV * (1.0 - k) + k))
-
-float GeometrySmith(float NdotV, float NdotL, float k) {
-	float ggx1 = GeometrySchlickGGX(NdotV, k);
-	float ggx2 = GeometrySchlickGGX(NdotL, k);
-
-	return ggx1 * ggx2;
-}
-
-float DistributionGGX(vec3 N, vec3 H, float roughness) {
-	float a      = roughness*roughness;
-	float a2     = a*a;
-	float NdotH  = abs(dot(N, H));
-
-	float denom = (NdotH * NdotH * (a2 - 1.0) + 1.0);
-	denom = PI * denom * denom;
-
-	return a2 / denom;
-}
-
-mat3 make_coord_space(vec3 n) {
-    vec3 h = n;
-    if (abs(h.x) <= abs(h.y) && abs(h.x) <= abs(h.z))
-        h.x = 1.0;
-    else if (abs(h.y) <= abs(h.x) && abs(h.y) <= abs(h.z))
-        h.y = 1.0;
-    else
-        h.z = 1.0;
-
-    vec3 y = normalize(cross(h, n));
-    vec3 x = normalize(cross(n, y));
+    const vec3 y = normalize(cross(h, n));
+    const vec3 x = cross(n, y);
 
     return mat3(x, y, n);
 }
@@ -119,6 +71,11 @@ float getTheta(vec3 v, vec3 n)
     return acos(clamp(dot(v, n), -1.0 + 1e-5, 1.0 - 1e-5));
 }
 
+float getTheta(vec3 v)
+{
+    return acos(clamp(v.z, -1.0 + 1e-5, 1.0 - 1e-5));
+}
+
 // float lambda(float theta, float alpha)
 // {
 //     float a = 1.0 / (alpha * tan(theta));
@@ -137,9 +94,9 @@ float lambda(float theta, float alpha)
 }
 
 // https://www.pbr-book.org/3ed-2018/Reflection_Models/Microfacet_Models Microfacet Distribution G
-float BSDF_G(vec3 v, vec3 l, vec3 n, float alpha)
+float BSDF_G(vec3 v, vec3 l, float alpha)
 {
-    return 1.0 / (1.0 + lambda(getTheta(v, n), alpha) + lambda(getTheta(l, n), alpha));
+    return 1.0 / (1.0 + lambda(getTheta(v), alpha) + lambda(getTheta(l), alpha));
 }
 
 // https://www.pbr-book.org/3ed-2018/Reflection_Models/Microfacet_Models BeckmannDistribution::D
@@ -148,9 +105,9 @@ float BSDF_D_theta_h(float theta_h, float alpha)
     return exp(-pow2(tan(theta_h)) / pow2(alpha)) / (PI * pow2(alpha) * pow4(cos(theta_h)));
 }
 
-float BSDF_D(vec3 h, vec3 n, float alpha)
+float BSDF_D(vec3 h, float alpha)
 {
-    float theta_h = getTheta(h, n);
+    float theta_h = getTheta(h);
     return BSDF_D_theta_h(theta_h, alpha);
 }
 
@@ -180,29 +137,6 @@ bool match(float a, float b)
 	return (a > b - 0.002 && a < b + 0.002);
 }
 
-vec3 getF(float metalic, float roughness, float cosTheta, vec3 albedo)
-{
-	if (metalic < (229.5 / 255.0))
-    {
-        float metalic_generated = 1.0 - metalic * (229.0 / 255.0);
-        metalic_generated = pow(metalic_generated, 2.0);
-		return fresnelSchlickRoughness(cosTheta, vec3(metalic_generated), roughness) * albedo;
-    }
-
-	#include "/programs/post/materials.glsl"
-
-	cosTheta = max(0.0, abs(cosTheta));
-
-	vec3 NcosTheta = 2.0 * N * cosTheta;
-	float cosTheta2 = cosTheta * cosTheta;
-	vec3 N2K2 = N * N + K * K;
-
-	vec3 Rs = (N2K2 - NcosTheta + cosTheta2) / (N2K2 + NcosTheta + cosTheta2);
-	vec3 Rp = (N2K2 * cosTheta2 - NcosTheta + 1.0) / (N2K2 * cosTheta2 + NcosTheta + 1.0);
-
-	return (Rs + Rp) * 0.5;
-}
-
 vec3 MetalF(float metalic, float cosTheta)
 {
 	#include "/programs/post/materials.glsl"
@@ -225,18 +159,24 @@ vec3 getF0(float metalic)
 
 vec3 BSDF(vec3 wo, vec3 wi, vec3 N, float metalic, float alpha, vec3 albedo, bool do_specular, out vec3 kD)
 {
+    const mat3 o2w = make_coord_space(N);
+    const mat3 w2o = transpose(o2w);
+
+    wo = w2o * wo;
+    wi = w2o * wi;
+
     vec3 h = normalize(wo + wi);
 
-    if (dot(N, wo) < 0.0) return vec3(0.0);
-    if (dot(N, wi) < 0.0) return vec3(0.0);
+    if (wo.z < 0.0) return vec3(0.0);
+    if (wi.z < 0.0) return vec3(0.0);
 
-    float G = BSDF_G(wo, wi, N, alpha);
-    float D = BSDF_D(h, N, alpha);
+    float G = BSDF_G(wo, wi, alpha);
+    float D = BSDF_D(h, alpha);
 
     if (metalic > (229.5 / 255.0))
     {
         // Metals
-        vec3 F = MetalF(metalic, abs(dot(wi, N)));
+        vec3 F = MetalF(metalic, abs(wi.z));
 
 #ifdef DIFFUSE_ONLY
         return vec3(0.0);
@@ -255,9 +195,9 @@ vec3 BSDF(vec3 wo, vec3 wi, vec3 N, float metalic, float alpha, vec3 albedo, boo
         kD = 1.0 - kS;
         kD *= 1.0 - F0.r;
 
-        vec3 diffuse = kD / PI * max(dot(N, wi), 0.0);
+        vec3 diffuse = kD / PI * max(wi.z, 0.0);
 
-        vec3 specular = F * G / max(0.001, 4.0 * abs(dot(N, wo)));
+        vec3 specular = F * G / max(0.001, 4.0 * abs(wo.z));
 
 #ifdef SPECULAR_ONLY
         return do_specular ? specular : diffuse;
@@ -323,7 +263,7 @@ struct Material
     vec3 view_normal;
 };
 
-vec3 getLighting(Material mat, vec3 view_dir, vec3 view_pos, vec3 world_pos, vec3 ao)
+vec3 getLighting(Material mat, vec3 view_dir, vec3 view_pos, vec3 world_pos, const vec3 ao)
 {
     vec3 color = vec3(0.0);
 
