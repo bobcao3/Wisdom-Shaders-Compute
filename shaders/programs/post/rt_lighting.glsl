@@ -31,7 +31,9 @@ uniform vec3 cameraPosition;
 
 #include "/libs/lighting.glsl"
 
-uniform usampler2D shadowcolor0;
+//uniform usampler2D shadowcolor0;
+
+layout (r32ui) uniform uimage2D shadowcolorimg0;
 
 #include "/libs/voxel_raytracing.glsl"
 

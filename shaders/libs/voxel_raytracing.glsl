@@ -68,7 +68,7 @@ bool voxel_march(vec3 rayPos, vec3 rayDir, float tMax, out vec3 hitNormal, out v
         if (planar_pos == ivec2(-1)) break;
 
         {
-            data = texelFetch(shadowcolor0, planar_pos, 0).r;
+            data = imageLoad(shadowcolorimg0, planar_pos).r;
 
             uint enc_distance;
             const vec3 c = unpackUint6Unorm3x6(data, enc_distance);
