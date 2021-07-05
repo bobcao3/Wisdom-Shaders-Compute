@@ -8,6 +8,7 @@ const vec2 workGroupsRender = vec2(1.0f, 1.0f);
 
 #define SPECULAR_PT
 #define FULL_RES
+#define SSR_FIRST
 // #define SPLIT_SUM
 
 #ifdef SPECULAR_PT

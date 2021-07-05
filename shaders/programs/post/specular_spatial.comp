@@ -105,15 +105,16 @@ void main()
     {
         for (int j = -radius; j <= radius; j++)
         {
-            ivec2 offset = ivec2(i, j);
+            const ivec2 offset = ivec2(i, j);
+
+            if (!lds_valid[getIndex(local_id + offset)]) continue;
+
             f16vec3 sample_color = lds_colors[getIndex(local_id + offset)];
-
-            if (isnan(sample_color.r) || !lds_valid[getIndex(local_id + offset)]) continue;
-
             f16vec3 sample_normal = lds_normals[getIndex(local_id + offset)];
             f16vec3 sample_albedo = lds_albedo[getIndex(local_id + offset)] - center_albedo;
-            float16_t color_diff = abs(dot(sample_color, f16vec3(0.2126, 0.7152, 0.0722)) - center_luma);
             float sample_depth = lds_depth[getIndex(local_id + offset)];
+
+            float16_t color_diff = abs(dot(sample_color, f16vec3(0.2126, 0.7152, 0.0722)) - center_luma);
 
             float16_t sample_weight = gaussian[i + radius] * gaussian[j + radius];
             sample_weight *= pow(max(float16_t(0.0), dot(normal, sample_normal)), float16_t(128.0));

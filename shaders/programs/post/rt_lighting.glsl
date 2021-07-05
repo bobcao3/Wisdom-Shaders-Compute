@@ -148,8 +148,34 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
     uint vox_data;
     vec3 tint = vec3(1.0);
 
-    // Voxel ray tracing
+#ifdef SSR_FIRST
+    if (!hit)
     {
+        hit_pos = raytrace(view_pos + view_normal * 0.05, iuv, sample_dir, stride, stride_multiplier, zThickness, lod, refine);
+
+        if (hit_pos != ivec2(-1) && hit_pos != iuv)
+        {
+            vec3 t_hit_proj_pos = getProjPos(hit_pos);
+            vec3 t_hit_view_pos = proj2view(t_hit_proj_pos);
+            vec3 t_hit_wpos = view2world(t_hit_view_pos);
+
+            vec3 t_real_sampled_dir = normalize(t_hit_view_pos - view_pos);
+
+            // Confirm SSR
+            if (max(dot(t_real_sampled_dir, sample_dir), 0.0) > 0.9 && t_hit_proj_pos.z < 1.0)
+            {
+                hit = true;
+                hit_proj_pos = t_hit_proj_pos;
+                hit_view_pos = t_hit_view_pos;
+                hit_wpos = t_hit_wpos;
+                real_sampled_dir = t_real_sampled_dir;
+            }
+        }
+    }
+#endif
+
+    // Voxel ray tracing
+    if (!hit) {
         vox_hit = voxel_march(world_pos + world_normal * 0.05, world_sample_dir, 200.0, vox_hit_normal, hit_wpos, vox_data, tint);
         hit_view_pos = (gbufferModelView * vec4(hit_wpos, 1.0)).rgb;
         real_sampled_dir = sample_dir;
@@ -187,29 +213,31 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
     }
 
     // SSR
-    // if (!hit)
-    // {
-    //     hit_pos = raytrace(view_pos + view_normal * 0.05, iuv, sample_dir, stride, stride_multiplier, zThickness, lod, refine);
+#ifndef SSR_FIRST
+    if (!hit)
+    {
+        hit_pos = raytrace(view_pos + view_normal * 0.05, iuv, sample_dir, stride, stride_multiplier, zThickness, lod, refine);
 
-    //     if (hit_pos != ivec2(-1) && hit_pos != iuv)
-    //     {
-    //         vec3 t_hit_proj_pos = getProjPos(hit_pos);
-    //         vec3 t_hit_view_pos = proj2view(t_hit_proj_pos);
-    //         vec3 t_hit_wpos = view2world(t_hit_view_pos);
+        if (hit_pos != ivec2(-1) && hit_pos != iuv)
+        {
+            vec3 t_hit_proj_pos = getProjPos(hit_pos);
+            vec3 t_hit_view_pos = proj2view(t_hit_proj_pos);
+            vec3 t_hit_wpos = view2world(t_hit_view_pos);
 
-    //         vec3 t_real_sampled_dir = normalize(t_hit_view_pos - view_pos);
+            vec3 t_real_sampled_dir = normalize(t_hit_view_pos - view_pos);
 
-    //         // Confirm SSR
-    //         if (max(dot(t_real_sampled_dir, sample_dir), 0.0) > 0.9 && t_hit_proj_pos.z < 1.0)
-    //         {
-    //             hit = true;
-    //             hit_proj_pos = t_hit_proj_pos;
-    //             hit_view_pos = t_hit_view_pos;
-    //             hit_wpos = t_hit_wpos;
-    //             real_sampled_dir = t_real_sampled_dir;
-    //         }
-    //     }
-    // }
+            // Confirm SSR
+            if (max(dot(t_real_sampled_dir, sample_dir), 0.0) > 0.9 && t_hit_proj_pos.z < 1.0)
+            {
+                hit = true;
+                hit_proj_pos = t_hit_proj_pos;
+                hit_view_pos = t_hit_view_pos;
+                hit_wpos = t_hit_wpos;
+                real_sampled_dir = t_real_sampled_dir;
+            }
+        }
+    }
+#endif
 
     transmission = tint;
 
@@ -468,16 +496,7 @@ void main()
 
         color /= max(1.0, samples_taken);
 
-        if (isnan(color.r) || isnan(color.g) || isnan(color.b)) color = vec3(0.0);
-        color = clamp(color, vec3(1e-5), vec3(1e4));
-
-        step_count = 0;
-        {
-            vec3 t0, t1, t3;
-            uint t2;
-            voxel_march(vec3(0.0), world_dir, 200.0, t0, t1, t2, t3);
-        }
-        color = vec3(float(step_count) / float(MAX_RAY_STEPS));
+        if (isNanInf(color)) color = vec3(0.0);
 
         imageStore(colorimg5, iuv_orig, vec4(color, 1.0));
     }

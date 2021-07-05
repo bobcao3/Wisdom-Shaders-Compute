@@ -44,6 +44,29 @@
 
 #endif
 
+const float INF = 1.0 / 0.0;
+const float16_t F16INF = float16_t(1.0 / 0.0);
+
+bool isNanInf(float v)
+{
+    return isnan(v) || isinf(v);
+}
+
+bool isNanInf(vec2 v)
+{
+    return any(isnan(v)) || any(isinf(v));
+}
+
+bool isNanInf(vec3 v)
+{
+    return any(isnan(v)) || any(isinf(v));
+}
+
+bool isNanInf(vec4 v)
+{
+    return any(isnan(v)) || any(isinf(v));
+}
+
 float L1dist(vec2 v)
 {
     return max(abs(v.x), abs(v.y));

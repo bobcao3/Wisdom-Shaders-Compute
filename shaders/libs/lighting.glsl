@@ -1,7 +1,7 @@
 #define LIGHTING_SAMPLES 1 // [4 8 16]
 
 const mat3 make_coord_space(const vec3 n) {
-    const vec3 h = (n.y > 0.9) ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
+    const vec3 h = (abs(n.y) > 0.9) ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
 
     const vec3 y = normalize(cross(h, n));
     const vec3 x = cross(n, y);

@@ -119,7 +119,7 @@ void main() {
 
         flag |= (priority & 0x3) << 24;
 
-        flag |= packUnorm4x8(vec4(tileColor, 0.0)) & 0xFFFFFF;
+        flag |= packUint6Unorm3x6(0, tileColor) & 0xFFFFFF;
 
         imageAtomicMax(shadowcolorimg0, planar_pos, flag);
     }

@@ -144,19 +144,19 @@ void main()
     //     if ((iuv.x >> 2) == median_index) color = vec3(1.0, 0.0, 0.0);
     // }
 
-    if (iuv.x < 2048 && iuv.y < 1024)
-    {
-        uint e = texelFetch(shadowcolor0, iuv, 0).r;
-        uint d;
-        vec3 c = unpackUint6Unorm3x6(e, d);
-        if (d == 0) {
-            color = c;
-        } else if (d >= 63) {
-            color = vec3(1.0);
-        } else {
-            color = mix(vec3(0.0, 1.0, 0.0), vec3(1.0, 0.0, 0.0), clamp(float(d) / 8.0, 0.0, 1.0));
-        }
-    }
+    // if (iuv.x < 2048 && iuv.y < 1024)
+    // {
+    //     uint e = texelFetch(shadowcolor0, iuv, 0).r;
+    //     uint d;
+    //     vec3 c = unpackUint6Unorm3x6(e, d);
+    //     if (d == 0) {
+    //         color = c;
+    //     } else if (d >= 63) {
+    //         color = vec3(1.0);
+    //     } else {
+    //         color = mix(vec3(0.0, 1.0, 0.0), vec3(1.0, 0.0, 0.0), clamp(float(d) / 8.0, 0.0, 1.0));
+    //     }
+    // }
 
     if (iuv.x < 256 && iuv.y < 128)
     {
