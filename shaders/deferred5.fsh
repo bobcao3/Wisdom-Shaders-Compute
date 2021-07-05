@@ -34,6 +34,18 @@ uniform usampler2D shadowcolor0;
 
 #define MAX_SVGF_TEMPORAL_LENGTH 64 // [16 32 48 64 80 96 112 128]
 
+vec4 sampleHistory(ivec2 iuv, out float history_length)
+{
+    history_length = texelFetch(colortex9, iuv, 0).r;
+    vec4 history = texelFetch(colortex12, iuv, 0);
+    if (isNanInf(history))
+    {
+        history = vec4(0.0);
+        history_length = 0.0;
+    }
+    return history;
+}
+
 void main()
 {
     ivec2 iuv = ivec2(gl_FragCoord.xy) * 2;
@@ -65,40 +77,48 @@ void main()
     vec3 temporal = vec3(0.0);
     vec3 color = vec3(0.0);
 
-    float view_z, history_length = 0.0;
+    float dist, history_length = 0.5;
 
     if (depth < 1.0)
     {
         vec3 proj_pos = getProjPos(uv, depth);
-        vec3 view_pos = proj2view(proj_pos); view_z = view_pos.z;
+        vec3 view_pos = proj2view(proj_pos);
         vec3 world_pos = view2world(view_pos);
         vec3 world_dir = normalize(world_pos);
         vec3 view_dir = normalize(view_pos);
+
+        dist = length(view_pos.xyz);
 
         vec3 curr_color = texelFetch(colortex5, iuv_orig, 0).rgb;
         color = curr_color;
 
         vec2 history_uv = uv + texelFetch(colortex1, iuv, 0).rg;
-        float weight = 0.06;
         
-        if (history_uv.x < 0.0 || history_uv.y < 0.0 || history_uv.x > 1.0 || history_uv.y > 1.0) weight = 1.0;
+        vec2 history_iuv = history_uv * 0.5 * vec2(viewWidth, viewHeight) - vec2(0.5);
+        vec2 history_iuv_frac = fract(history_iuv);
 
-        ivec2 history_uv_iuv = ivec2(history_uv * 0.5 * vec2(viewWidth, viewHeight));
+        float history_length00;
+        vec4 history00 = sampleHistory(ivec2(history_iuv), history_length00);
+        float history_length01;
+        vec4 history01 = sampleHistory(ivec2(history_iuv) + ivec2(0, 1), history_length01);
+        float history_length10;
+        vec4 history10 = sampleHistory(ivec2(history_iuv) + ivec2(1, 0), history_length10);
+        float history_length11;
+        vec4 history11 = sampleHistory(ivec2(history_iuv) + ivec2(1, 1), history_length11);
 
-        vec4 history = texture(colortex12, history_uv * 0.5);
-        history_length = texture(colortex9, history_uv * 0.5).r;
+        float weight00 = float(abs((dist - history00.a) / dist) < 0.05) * (1.0 - history_iuv_frac.x) * (1.0 - history_iuv_frac.y);
+        float weight01 = float(abs((dist - history01.a) / dist) < 0.05) * (1.0 - history_iuv_frac.x) * (      history_iuv_frac.y);
+        float weight10 = float(abs((dist - history10.a) / dist) < 0.05) * (      history_iuv_frac.x) * (1.0 - history_iuv_frac.y);
+        float weight11 = float(abs((dist - history11.a) / dist) < 0.05) * (      history_iuv_frac.x) * (      history_iuv_frac.y);
 
-        if (isNanInf(history)) history = vec4(0.0);
+        float total_weight = weight00 + weight01 + weight10 + weight11 + 1e-4;
+        vec4 history = (history00 * weight00 + history01 * weight01 + history10 * weight10 + history11 * weight11) / total_weight;
+        float history_length = (history_length00 * weight00 + history_length01 * weight01 + history_length10 * weight10 + history_length11 * weight11) / total_weight;
+        history_length = clamp((total_weight < 0.01) ? 1.0 : history_length + 1.0, 1.0, float(MAX_SVGF_TEMPORAL_LENGTH));
 
-        float depth_diff = abs((view_pos.z - history.a) / view_pos.z);
-        if (depth_diff > 0.1)
-        {
-            weight = 1.0;
-        }
+        if (history_uv.x < 0.0 || history_uv.y < 0.0 || history_uv.x > 1.0 || history_uv.y > 1.0) history_length = 1.0;
 
-        history_length = clamp((weight > 0.9) ? 1.0 : history_length + 1.0, 1.0, float(MAX_SVGF_TEMPORAL_LENGTH));
-
-        weight = 1.0 / history_length;
+        float weight = 1.0 / history_length;
 
         if (squared)
         {
@@ -145,9 +165,13 @@ void main()
 
         if (curr_color.r > 1e5) color = vec3(1.0, 0.0, 0.0);
 
+        gl_FragData[1] = vec4(history_length, 0.0, 0.0, 1.0);
+    }
+    else
+    {
+        gl_FragData[1] = vec4(0.0, 0.0, 0.0, 1.0);
     }
 
     gl_FragData[0] = vec4(color, 1.0);
-    gl_FragData[1] = vec4(history_length, 0.0, 0.0, 1.0);    
-    gl_FragData[2] = vec4(temporal, view_z);
+    gl_FragData[2] = vec4(temporal, dist);
 }

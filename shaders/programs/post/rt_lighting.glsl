@@ -3,6 +3,7 @@ uniform float aspectRatio;
 
 uniform vec2 invWidthHeight;
 
+uniform sampler2D colortex1;
 uniform sampler2D colortex2;
 uniform sampler2D colortex3;
 uniform sampler2D colortex4;
@@ -499,6 +500,8 @@ void main()
         color /= max(1.0, samples_taken);
 
         if (isNanInf(color)) color = vec3(0.0);
+
+        if (color.r > 1e2) color = vec3(0.0);
 
         imageStore(colorimg5, iuv_orig, vec4(color, 1.0));
     }

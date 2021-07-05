@@ -138,6 +138,8 @@ void main()
     // if (iuv.x < viewWidth / 16 && iuv.y < viewHeight / 16)
     //     color = texelFetch(colortex4, iuv * 16, 0).rrr * histogram_log_scale;
 
+    // color = texelFetch(colortex9, iuv, 0).rrr / 64.0;
+
     // if (iuv.x < 512 && iuv.y < 256)
     // {
     //     color = vec3(float( uintBitsToFloat(texelFetch(shadowcolor0, ivec2(iuv.x >> 2, 1), 0).r) * 512.0 < iuv.y));
