@@ -20,11 +20,11 @@ void main()
 {
     ivec2 iuv = ivec2(gl_GlobalInvocationID.xy);
 
-    if (iuv.x <= (int(viewWidth) >> 2) && iuv.y <= (int(viewHeight) >> 1) && frameCounter % 2 == 0)
+    if (iuv.x <= min(128, int(viewWidth) >> 2) && iuv.y <= min(384, int(viewHeight) >> 1) && frameCounter % 2 == 0)
     {
         vec4 skybox = vec4(0.0);
     
-        vec2 uv = (vec2(iuv) * invWidthHeight) * 4.0;
+        vec2 uv = (vec2(iuv) * invWidthHeight) * max(vec2(4.0), vec2(viewWidth / 128.0, 2.0 * viewHeight / 384.0));
         skybox.rg = clamp(vec2(densitiesMap(uv)), vec2(0.0), vec2(200.0));
         skybox.ba = vec2(0.0);
     

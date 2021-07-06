@@ -4,13 +4,11 @@
 VERTEX_INOUT VertexOut {
     vec4 color;
     vec2 uv;
-    // flat vec2 normal_enc;
-    vec3 normal;
-    vec3 tangent;
+    flat uint normal_enc;
+    flat uint tangent_enc;
     float view_z;
     vec2 lmcoord;
     float flag;
-
     vec2 miduv;
     flat vec2 bound_uv;
 };
@@ -79,13 +77,21 @@ void main()
     spec.r = sqrt(spec.r);
 #endif
 
-    vec3 bitangent = normalize(cross(tangent, normal));
+    f16vec3 normal = f16vec3(unpackSnorm4x8(normal_enc).rgb);
+    f16vec3 tangent = f16vec3(unpackSnorm4x8(tangent_enc).rgb);
+
+    f16vec3 bitangent = normalize(cross(tangent, normal));
     mat3 tbn = mat3(tangent, bitangent, normal);
 
-    vec3 normal_tex = texture(normals, uv).rgb; normal_tex.rg = normal_tex.rg * 2.0 - 1.0;
-    vec3 normal_sampled = vec3(normal_tex.rg, sqrt(1.0 - dot(normal_tex.xy, normal_tex.xy)));
+    f16vec3 normal_tex = f16vec3(texture(normals, uv).rgb); normal_tex.rg = normal_tex.rg * f16(2.0) - f16(1.0);
+    f16vec3 normal_sampled = f16vec3(normal_tex.rg, sqrt(f16(1.0) - dot(normal_tex.xy, normal_tex.xy)));
 
-    normal_sampled = normalize(mix(tbn * normal_sampled, normal, 0.5));
+    normal_sampled = normalize(mix(f16vec3(tbn * vec3(normal_sampled)), normal, f16(0.5)));
+
+    if (albedo.a < 1.0)
+    {
+        albedo.a = step(texelFetch(noisetex, ivec2(gl_FragCoord.st) & 0xFF, 0).r, albedo.a);
+    }
 
     gl_FragData[0] = albedo; // Albedo
     gl_FragData[1] = vec4(normal_sampled, flag); // Depth, Flag, Normal
@@ -114,11 +120,13 @@ void main()
     gl_Position = gl_ProjectionMatrix * view_pos;
     
     color = gl_Color;
-    // normal_enc = normalEncode(normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz));
-    normal = mat3(gbufferModelViewInverse) * normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz);
+    f16vec3 normal = f16vec3(mat3(gbufferModelViewInverse) * normalize(mat3(gl_NormalMatrix) * gl_Normal.xyz));
 
-    vec3 tangent_adj = at_tangent.w == 0.0 ? -at_tangent.xyz : at_tangent.xyz;
-    tangent = mat3(gbufferModelViewInverse) * normalize(gl_NormalMatrix * tangent_adj);
+    f16vec3 tangent_adj = f16vec3(at_tangent.w == 0.0 ? -at_tangent.xyz : at_tangent.xyz);
+    f16vec3 tangent = f16vec3(mat3(gbufferModelViewInverse) * normalize(mat3(gl_NormalMatrix) * tangent_adj));
+
+    normal_enc = packSnorm4x8(vec4(normal, 0.0));
+    tangent_enc = packSnorm4x8(vec4(tangent, 0.0));
 
     uv = (gl_TextureMatrix[0] * gl_MultiTexCoord0).st;
 

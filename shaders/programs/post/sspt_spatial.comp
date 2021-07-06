@@ -11,7 +11,7 @@ uniform sampler2D colortex7;
 
 layout (r11f_g11f_b10f) uniform image2D colorimg5;
 
-float16_t gaussian[] = float16_t[] (
+f16 gaussian[] = f16[] (
     0.06136, 0.24477, 0.38774, 0.24477, 0.06136
 );
 
@@ -25,9 +25,9 @@ int getIndex(ivec2 uv)
 
 shared f16vec3 lds_normals[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
 shared f16vec3 lds_colors[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
-shared float16_t lds_variance[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
+shared f16 lds_variance[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
 shared float lds_depth[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
-shared float16_t lds_dz[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
+shared f16 lds_dz[(gl_WorkGroupSize.x + 4) * (gl_WorkGroupSize.y + 4)];
 
 uniform float near;
 uniform float far;
@@ -54,14 +54,14 @@ void load(ivec2 local_xy, ivec2 iuv)
         lds_depth[getIndex(local_xy + 2)] = linearizeDepth(depth);
     }
 
-    lds_dz[getIndex(local_xy + 2)] = float16_t(4.0 * max(
+    lds_dz[getIndex(local_xy + 2)] = f16(4.0 * max(
         abs(depth - texelFetchOffset(colortex4, sample_uv, 0, ivec2(1, 0)).r),
         abs(depth - texelFetchOffset(colortex4, sample_uv, 0, ivec2(0, 1)).r)
     ));
 
     f16vec3 sample_normal = f16vec3(texelFetch(colortex7, sample_uv * 2, 0).rgb);
     f16vec3 sample_color = f16vec3(imageLoad(colorimg5, (sample_uv + IN_OFFSET)).rgb);
-    float16_t sample_variance = float16_t(imageLoad(colorimg5, (sample_uv + IN_OFFSET) + ivec2(viewWidth * 0.5, 0.0)).r);
+    f16 sample_variance = f16(imageLoad(colorimg5, (sample_uv + IN_OFFSET) + ivec2(viewWidth * 0.5, 0.0)).r);
 
     lds_colors[getIndex(local_xy + 2)] = sample_color;
     lds_normals[getIndex(local_xy + 2)] = sample_normal;
@@ -99,13 +99,13 @@ void main()
 
     f16vec3 color = f16vec3(0.0);
     f16vec3 color_backup = f16vec3(0.0);
-    float16_t total_var = 0.0;
-    float16_t weight = 0.0001;
+    f16 total_var = 0.0;
+    f16 weight = 0.0001;
 
     const f16vec3 center_normal = lds_normals[getIndex(local_id)];
     const f16vec3 center_color = lds_colors[getIndex(local_id)];
-    const float16_t center_luma = dot(center_color, f16vec3(0.2126, 0.7152, 0.0722));
-    const float16_t center_var = lds_variance[getIndex(local_id)];
+    const f16 center_luma = dot(center_color, f16vec3(0.2126, 0.7152, 0.0722));
+    const f16 center_var = lds_variance[getIndex(local_id)];
 
     // Filter
     for (int i = -2; i <= 2; i++)
@@ -119,16 +119,16 @@ void main()
 
             const f16vec3 sample_color = lds_colors[getIndex(local_id + offset)];
             const f16vec3 sample_normal = lds_normals[getIndex(local_id + offset)];
-            const float16_t sample_var = lds_variance[getIndex(local_id + offset)];
+            const f16 sample_var = lds_variance[getIndex(local_id + offset)];
 
-            const float16_t color_diff = abs(dot(sample_color, f16vec3(0.2126, 0.7152, 0.0722)) - center_luma);
+            const f16 color_diff = abs(dot(sample_color, f16vec3(0.2126, 0.7152, 0.0722)) - center_luma);
 
-            const float16_t w_gaussian = gaussian[i + 2] * gaussian[j + 2];
-            const float16_t w_normal = pow(max(float16_t(0.0), dot(center_normal, sample_normal)), float16_t(128.0));
-            const float16_t w_luma = exp(-color_diff / max(sqrt(center_var), 0.01));
-            const float16_t w_depth = exp(-float16_t(abs(sample_depth - center_depth)) / (lds_dz[getIndex(local_id + offset)] * float16_t(max(abs(i), abs(j))) + float16_t(0.0001)));
+            const f16 w_gaussian = gaussian[i + 2] * gaussian[j + 2];
+            const f16 w_normal = pow(max(f16(0.0), dot(center_normal, sample_normal)), f16(128.0));
+            const f16 w_luma = exp(-color_diff / max(sqrt(center_var), 0.01));
+            const f16 w_depth = exp(-f16(abs(sample_depth - center_depth)) / (lds_dz[getIndex(local_id + offset)] * f16(max(abs(i), abs(j))) + f16(0.0001)));
 
-            const float16_t sample_weight = w_gaussian * w_normal * w_luma * w_depth;
+            const f16 sample_weight = w_gaussian * w_normal * w_luma * w_depth;
 
             color += sample_color * sample_weight;
             color_backup += sample_color * gaussian[i + 2] * gaussian[j + 2];

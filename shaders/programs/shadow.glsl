@@ -4,7 +4,7 @@ uniform int frameCounter;
 
 #ifdef VERTEX
 
-out vec4 color;
+out f16vec4 color;
 out f16vec2 uv;
 
 uniform vec3 shadowLightPosition;
@@ -78,7 +78,7 @@ void main() {
     vec4 input_pos = gl_Vertex;
 
     uv = f16vec2(mat2(gl_TextureMatrix[0]) * gl_MultiTexCoord0.st);
-    color = vec4(gl_Color);
+    color = f16vec4(gl_Color);
 
     vec4 shadow_view_pos = gl_ModelViewMatrix * input_pos;
 
@@ -94,9 +94,9 @@ void main() {
         ivec3 volume_pos = getVolumePos(world_pos_center, cameraPosition);
         ivec2 planar_pos = volume2planar(volume_pos);
 
-        vec4 texture_sample = texture(tex, mc_midTexCoord.st);
+        f16vec4 texture_sample = f16vec4(texture(tex, mc_midTexCoord.st));
 
-        vec3 tileColor = texture_sample.a < 0.1 ? color.rgb : texture_sample.rgb * color.rgb;
+        f16vec3 tileColor = texture_sample.a < f16(0.1) ? color.rgb : texture_sample.rgb * color.rgb;
 
         uint flag = 0;
 
@@ -106,20 +106,20 @@ void main() {
 
         uint hardcode = (uint(mc_Entity.x) >> 8) & 0x7;
 
-        if ((uint(mc_Entity.x) & 0x1) > 0) tileColor *= 0.5;
+        if ((uint(mc_Entity.x) & 0x1) > 0) tileColor *= f16(0.5);
 
         if (hardcode == 1)
-            tileColor = vec3(0.9, 0.95, 1.0);
+            tileColor = f16vec3(0.9, 0.95, 1.0);
         else if (hardcode == 2)
-            tileColor = vec3(0.9, 0.6, 0.2);
+            tileColor = f16vec3(0.9, 0.6, 0.2);
         else if (hardcode == 3)
-            tileColor = vec3(0.1, 0.2, 0.3);
+            tileColor = f16vec3(0.1, 0.2, 0.3);
 
         uint priority = uint(sign(gl_Normal.y) + 1);
 
         flag |= (priority & 0x3) << 24;
 
-        flag |= packUint6Unorm3x6(0, tileColor) & 0xFFFFFF;
+        flag |= packUint6Unorm3x6(0, vec3(tileColor)) & 0xFFFFFF;
 
         imageAtomicMax(shadowcolorimg0, planar_pos, flag);
     }
@@ -132,7 +132,7 @@ void main() {
 
 #else
 
-in vec4 color;
+in f16vec4 color;
 in f16vec2 uv;
 
 uniform sampler2D tex;
@@ -143,7 +143,7 @@ void main() {
     ivec2 iuv = ivec2(gl_FragCoord.st);
 
     //gl_FragData[0] = color * texture(tex, uv);
-    vec4 compColor = color * texture(tex, uv);
+    vec4 compColor = vec4(color) * texture(tex, uv);
 
     if (compColor.a < 0.9) discard;
 }

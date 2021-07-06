@@ -34,7 +34,7 @@
 #define f32vec2 vec2
 #define f32vec3 vec3
 #define f32vec4 vec4
-#define float16_t float
+#define f16 float
 #define f16vec2 vec2
 #define f16vec3 vec3
 #define f16vec4 vec4
@@ -44,8 +44,14 @@
 
 #endif
 
+#ifdef SUPPORT_HALF
+#define f16 float16_t
+#else
+#define f16 float
+#endif
+
 const float INF = 1.0 / 0.0;
-const float16_t F16INF = float16_t(1.0 / 0.0);
+const f16 F16INF = f16(1.0 / 0.0);
 
 bool isNanInf(float v)
 {
@@ -258,17 +264,17 @@ vec3 unpackUint6Unorm3x6(uint e, out uint v)
 }
 
 #ifdef SUPPORT_HALF
-float16_t L1dist(f16vec2 v)
+f16 L1dist(f16vec2 v)
 {
     return max(abs(v.x), abs(v.y));
 }
 
-float16_t L2dist2(f16vec2 v)
+f16 L2dist2(f16vec2 v)
 {
     return dot(v, v);
 }
 
-float16_t pow1d5(float16_t c)
+f16 pow1d5(f16 c)
 {
 	return c * sqrt(c);
 }
@@ -288,7 +294,7 @@ f16vec4 pow1d5(f16vec4 c)
 	return c * sqrt(c);
 }
 
-float16_t pow2(float16_t c)
+f16 pow2(f16 c)
 {
 	return c * c;
 }
@@ -308,7 +314,7 @@ f16vec4 pow2(f16vec4 c)
 	return c * c;
 }
 
-float16_t pow3(float16_t c)
+f16 pow3(f16 c)
 {
     return c * c * c;
 }
@@ -328,7 +334,7 @@ f16vec4 pow3(f16vec4 c)
     return c * c * c;
 }
 
-float16_t pow4(float16_t c)
+f16 pow4(f16 c)
 {
     return (c * c) * (c * c);
 }
@@ -348,7 +354,7 @@ f16vec4 pow4(f16vec4 c)
     return (c * c) * (c * c);
 }
 
-float16_t pow5(float16_t c)
+f16 pow5(f16 c)
 {
     return (c * c) * (c * c) * c;
 }
@@ -368,7 +374,7 @@ f16vec4 pow5(f16vec4 c)
     return (c * c) * (c * c) * c;
 }
 
-float16_t pow6(float16_t c)
+f16 pow6(f16 c)
 {
     return (c * c) * (c * c) * (c * c);
 }
@@ -388,7 +394,7 @@ f16vec4 pow6(f16vec4 c)
     return (c * c) * (c * c) * (c * c);
 }
 
-float16_t pow7(float16_t c)
+f16 pow7(f16 c)
 {
     return (c * c) * (c * c) * (c * c) * c;
 }
@@ -408,9 +414,9 @@ f16vec4 pow7(f16vec4 c)
     return (c * c) * (c * c) * (c * c) * c;
 }
 
-float16_t pow8(float16_t c)
+f16 pow8(f16 c)
 {
-    float16_t t = (c * c) * (c * c);
+    f16 t = (c * c) * (c * c);
     return t * t;
 }
 

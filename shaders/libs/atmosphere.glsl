@@ -132,7 +132,7 @@ vec2 getDensityFromMap(vec3 p, vec3 d)
 
 	float phi = (atan(dir.y / dir.x) / 3.1415926) + 0.5;
 
-	vec2 uv = vec2(h * 0.25, mod(phi, 2.0) * 0.25 + 0.5);
+	vec2 uv = vec2(h * min(128.0 * invWidthHeight.x, 0.25), mod(phi, 2.0) * min(2.0 * 384.0 * invWidthHeight.y, 0.25) + 0.5);
 	uv.x = clamp(uv.x, 0.0, 0.25);
 
 	// return vec2(densitiesMap(uv));

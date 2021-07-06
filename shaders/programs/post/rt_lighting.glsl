@@ -310,6 +310,11 @@ void main()
 #ifdef RAY_GUIDING
     weights[gl_LocalInvocationID.x][gl_LocalInvocationID.y] = texelFetch(colortex12, iuv_orig + halfscreen_offset, 0).r + 0.05;
 
+    for (int i = 0; i < SSPT_RAYS; i++)
+    {
+        contributions[gl_LocalInvocationID.x][gl_LocalInvocationID.y][i] = 0.0;
+    }
+
     barrier();
     memoryBarrierShared();
     // Convert each row to a CDF
@@ -490,6 +495,9 @@ void main()
             sample_rad /= _kd + 1e-5;
 #endif
 
+            if (isNanInf(sample_rad)) sample_rad = vec3(0.0);
+            if (sample_rad.r > 1e2) sample_rad = vec3(0.0);
+
             color += sample_rad;
 
 #ifdef RAY_GUIDING
@@ -498,10 +506,6 @@ void main()
         }
 
         color /= max(1.0, samples_taken);
-
-        if (isNanInf(color)) color = vec3(0.0);
-
-        if (color.r > 1e2) color = vec3(0.0);
 
         imageStore(colorimg5, iuv_orig, vec4(color, 1.0));
     }
