@@ -13,7 +13,7 @@ uniform sampler2D colortex2;
 uniform sampler2D colortex3;
 uniform sampler2D colortex4;
 uniform sampler2D colortex5;
-uniform sampler2D colortex6;
+uniform usampler2D colortex6;
 uniform sampler2D colortex7;
 uniform sampler2D colortex8;
 uniform sampler2D colortex9;
@@ -60,12 +60,14 @@ void main()
         vec3 world_dir = normalize(world_pos);
         vec3 view_dir = normalize(view_pos);
 
-        vec3 albedo = texelFetch(colortex6, iuv, 0).rgb;
         vec3 world_normal = texelFetch(colortex7, iuv, 0).rgb;
         float world_depth = linearizeDepth(depth);
         vec3 view_normal = normalize(mat3(gbufferModelView) * world_normal);
 
-        vec4 lm_specular_encoded = texelFetch(colortex8, iuv, 0).rgba;
+        uvec2 albedo_specular = texelFetch(colortex6, iuv, 0).xy;
+
+        vec3 albedo = unpackUnorm4x8(albedo_specular.x).rgb;
+        vec4 lm_specular_encoded = unpackUnorm4x8(albedo_specular.y);
 
         vec2 lmcoord = lm_specular_encoded.rg;
 

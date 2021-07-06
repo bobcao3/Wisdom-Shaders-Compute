@@ -8,7 +8,7 @@ const vec2 workGroupsRender = vec2(0.3f, 0.13f);
 
 #include "/libs/compat.glsl"
 
-#define DISABLE_MIE
+// #define DISABLE_MIE
 
 uniform vec2 invWidthHeight;
 

@@ -11,9 +11,9 @@ const int colortex3Format = R11F_G11F_B10F; // Skybox
 const int colortex4Format = R32F; // Depth chain
 const int colortex5Format = R11F_G11F_B10F; // Composite 2
 
-const int colortex6Format = RGBA8; // Albedo
+const int colortex6Format = RG32UI; // Albedo
 const int colortex7Format = RGBA8_SNORM; // Normals
-const int colortex8Format = RGBA8; // Specular
+const int colortex8Format = RGBA16F; // Atmospheres
 
 const int colortex9Format = R16F; // AO temporal
 const int colortex10Format = RGBA16F; // Color temporal (R11F_G11F_B10F for gameplay)
@@ -23,10 +23,19 @@ const int colortex12Format = RGBA16F; // SSPT temporal
 const int shadowcolor0Format = R32UI;
 const int shadowcolor1Format = R32UI;
 
+const bool colortex0Clear = false;
+const bool colortex1Clear = false;
+const bool colortex2Clear = false;
 const bool colortex3Clear = false;
+const bool colortex4Clear = false;
+const bool colortex5Clear = false;
+const bool colortex6Clear = false;
+const bool colortex7Clear = false;
 const bool colortex9Clear = false;
 const bool colortex10Clear = false;
 const bool colortex12Clear = false;
+
+const bool shadowcolor1Clear = false;
 
 const vec4 shadowcolor0ClearColor = vec4(0.0, 0.0, 0.0, 0.0);
 const vec4 shadowcolor1ClearColor = vec4(0.0, 0.0, 0.0, 0.0);
@@ -41,7 +50,7 @@ uniform sampler2D colortex2;
 uniform sampler2D colortex3;
 uniform sampler2D colortex4;
 uniform sampler2D colortex5;
-uniform sampler2D colortex6;
+uniform usampler2D colortex6;
 uniform sampler2D colortex7;
 uniform sampler2D colortex8;
 uniform sampler2D colortex9;
@@ -127,6 +136,8 @@ void main()
 
     color = (new_luma) * pow(color, vec3(1.0 + SATURATION));
 
+    // color = unpackUnorm4x8(texelFetch(colortex6, iuv, 0).r).rgb;
+
     color = ACESFitted(toGamma(color));
     // color = toHLG(reinhard(color, 1.0), 0.5);
     // color = toGamma(reinhard(color, 1.0));
@@ -137,8 +148,6 @@ void main()
 
     // if (iuv.x < viewWidth / 16 && iuv.y < viewHeight / 16)
     //     color = texelFetch(colortex4, iuv * 16, 0).rrr * histogram_log_scale;
-
-    // color = texelFetch(colortex3, iuv, 0).rgb;
 
     // if (iuv.x < 512 && iuv.y < 256)
     // {

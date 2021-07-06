@@ -23,7 +23,11 @@ uniform vec2 invWidthHeight;
 
 uniform sampler2D tex;
 
-/* RENDERTARGETS: 11,6,7,8 */
+/* RENDERTARGETS: 11,6,7 */
+
+layout(location = 0) out vec4 transparent_albedo;
+layout(location = 1) out uvec2 albedo_specular;
+layout(location = 2) out vec4 normal_flag;
 
 #include "/libs/color.glslinc"
 
@@ -75,10 +79,9 @@ void main()
         albedo.a = 0.4;
     }
 
-    gl_FragData[0] = albedo; // Albedo
-    gl_FragData[1] = albedo; // Depth, Flag, Normal
-    gl_FragData[2] = vec4(normal, flag); // Depth, Flag, Normal
-    gl_FragData[3] = vec4(lmcoord, 1.0, 0.04); // F0, Smoothness
+    transparent_albedo = albedo; // Albedo
+    albedo_specular = uvec2(packUnorm4x8(albedo), packUnorm4x8(vec4(lmcoord, 1.0, 0.04)));
+    normal_flag = vec4(normal, flag); // Depth, Flag, Normal
 }
 
 #endif

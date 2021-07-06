@@ -346,26 +346,29 @@ vec3 getLighting(Material mat, vec3 view_dir, vec3 view_pos, vec3 world_pos, con
     //  Directional
     // --------------------------------------------------------------------
 
-    float shadow_depth;
+    vec3 sun_radiance = vec3(0.0);
 
-    vec3 shadow_pos_linear = world2shadowProj(world_pos) * 0.5 + 0.5;
+    if (dot(shadowLightPosition, mat.view_normal) >= 0.0)
+    {
+        float shadow_depth;
 
-    float shadow = shadowTexSmooth(shadow_pos_linear, shadow_depth, 1e-4 * (1.0 + length(shadow_pos_linear.xy) * 8.0));
+        vec3 shadow_pos_linear = world2shadowProj(world_pos) * 0.5 + 0.5;
+
+        float shadow = shadowTexSmooth(shadow_pos_linear, shadow_depth, 1e-4 * (1.0 + length(shadow_pos_linear.xy) * 8.0));
 
 #ifdef SCREEN_SPACE_SHADOWS
-    if (mat.flag < 0.1)
-    {
-        shadow = min(shadow, screen_space_shadows(view_pos, normalize(shadowLightPosition), getRand()));
-    }
+        if (mat.flag < 0.1)
+        {
+            shadow = min(shadow, screen_space_shadows(view_pos, normalize(shadowLightPosition), getRand()));
+        }
 #endif
-    
-    vec3 sun_radiance = shadow * texelFetch(colortex3, ivec2(viewWidth - 1, 0), 0).rgb;
+        
+        sun_radiance = shadow * texelFetch(colortex3, ivec2(viewWidth - 1, 0), 0).rgb;
+    }
 
     // FIXME: SSS
     vec3 _kd;
     color += BSDF(-view_dir, shadowLightPosition * 0.01, mat.view_normal, mat.metalic, mat.roughness, mat.albedo, false, _kd) * sun_radiance * mat.albedo;
-
-    float shadow_depth_diff = max(shadow_pos_linear.z - shadow_depth, 0.0);
 
     // --------------------------------------------------------------------
     //  Emission

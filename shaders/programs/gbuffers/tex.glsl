@@ -2,15 +2,14 @@
 #include "/libs/noise.glsl"
 
 VERTEX_INOUT VertexOut {
-    vec4 color;
     vec2 uv;
+    flat vec2 bound_uv;
+    vec2 lmcoord;
     flat uint normal_enc;
     flat uint tangent_enc;
-    float view_z;
-    vec2 lmcoord;
-    float flag;
-    vec2 miduv;
-    flat vec2 bound_uv;
+    flat float flag;
+    flat vec2 miduv;
+    lowp vec4 color;
 };
 
 #ifdef FRAGMENT
@@ -19,7 +18,10 @@ uniform sampler2D tex;
 uniform sampler2D specular;
 uniform sampler2D normals;
 
-/* RENDERTARGETS: 6,7,8 */
+/* RENDERTARGETS: 6,7 */
+
+layout (location = 0) out uvec2 albedo_specular;
+layout (location = 1) out vec4 normal_flag;
 
 #include "/libs/color.glslinc"
 
@@ -28,8 +30,6 @@ uniform sampler2D normals;
 
 void main()
 {
-    vec4 albedo = texture(tex, uv);
-
     vec2 atlas_size = textureSize(tex, 0);
 
     vec2 ddx = dFdx(uv);
@@ -38,16 +38,10 @@ void main()
     float dL = min(length(ddx * atlas_size), length(ddy * atlas_size));
     float lod = clamp(round(log2(dL) - 1.0), 0, 3);
     
-    #define AF_TAPS 8 // [2 4 8 16]
+    #define AF_TAPS 4 // [2 4 8 16]
 
 #ifdef USE_AF
-    albedo.a = textureLod(tex, uv, lod).a;
-
-    if (albedo.a < 0.05)
-    {
-        gl_FragData[0] = vec4(0.0);
-        return;
-    }
+    vec4 albedo = vec4(0.0, 0.0, 0.0, textureLod(tex, uv, lod).a);
     
     vec2 rect_size = abs(bound_uv - miduv);
     
@@ -63,10 +57,15 @@ void main()
 
     albedo.rgb /= float(AF_TAPS);
 #else
-    albedo = texture(tex, uv);
+    vec4 albedo = texture(tex, uv);
 #endif
 
     albedo *= color;
+
+    if (albedo.a < 0.99)
+    {
+        if (texelFetch(noisetex, ivec2(gl_FragCoord.st) & 0xFF, 0).r > albedo.a) discard;
+    }
     
     albedo.rgb = fromGamma(albedo.rgb);
 
@@ -86,16 +85,10 @@ void main()
     f16vec3 normal_tex = f16vec3(texture(normals, uv).rgb); normal_tex.rg = normal_tex.rg * f16(2.0) - f16(1.0);
     f16vec3 normal_sampled = f16vec3(normal_tex.rg, sqrt(f16(1.0) - dot(normal_tex.xy, normal_tex.xy)));
 
-    normal_sampled = normalize(mix(f16vec3(tbn * vec3(normal_sampled)), normal, f16(0.5)));
+    normal_sampled = normalize(mix(f16vec3(tbn * vec3(normal_sampled)), normal, f16(0.4)));
 
-    if (albedo.a < 1.0)
-    {
-        albedo.a = step(texelFetch(noisetex, ivec2(gl_FragCoord.st) & 0xFF, 0).r, albedo.a);
-    }
-
-    gl_FragData[0] = albedo; // Albedo
-    gl_FragData[1] = vec4(normal_sampled, flag); // Depth, Flag, Normal
-    gl_FragData[2] = vec4(lmcoord, spec.rg);
+    albedo_specular = uvec2(packUnorm4x8(albedo), packUnorm4x8(vec4(lmcoord, spec.rg)));
+    normal_flag = vec4(normal_sampled, flag); // Depth, Flag, Normal
 }
 
 #endif
@@ -115,7 +108,6 @@ uniform mat4 gbufferModelViewInverse;
 void main()
 {
     vec4 view_pos = gl_ModelViewMatrix * gl_Vertex;
-    view_z = view_pos.z;
 
     gl_Position = gl_ProjectionMatrix * view_pos;
     

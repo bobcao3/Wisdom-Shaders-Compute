@@ -6,7 +6,7 @@ const vec2 workGroupsRender = vec2(1.0f, 1.0f);
 
 uniform sampler2D colortex4;
 uniform sampler2D colortex5;
-uniform sampler2D colortex6;
+uniform usampler2D colortex6;
 uniform sampler2D colortex7;
 uniform sampler2D colortex8;
 uniform sampler2D depthtex0;
@@ -46,7 +46,7 @@ void load(ivec2 local_xy, ivec2 iuv)
     ivec2 sample_uv = clamp(iuv, ivec2(0), ivec2(floor(viewWidth) - 1, floor(viewHeight) - 1));
 
     f16vec3 sample_normal = f16vec3(texelFetch(colortex7, sample_uv * 2, 0).rgb);
-    f16vec3 sample_albedo = f16vec3(texelFetch(colortex6, sample_uv * 2, 0).rgb);
+    f16vec3 sample_albedo = f16vec3(unpackUnorm4x8(texelFetch(colortex6, sample_uv * 2, 0).r).rgb);
     f16vec3 sample_color = f16vec3(imageLoad(colorimg5, sample_uv).rgb);
 
     lds_albedo[getIndex(local_xy + 2)] = sample_albedo;

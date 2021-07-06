@@ -6,7 +6,7 @@ uniform vec2 invWidthHeight;
 uniform sampler2D colortex0;
 uniform sampler2D colortex3;
 uniform sampler2D colortex4;
-uniform sampler2D colortex6;
+uniform usampler2D colortex6;
 uniform sampler2D colortex7;
 uniform sampler2D colortex8;
 uniform sampler2D colortex15;
@@ -67,10 +67,12 @@ vec3 compute_lighting(ivec2 iuv, float depth)
     vec3 world_sun_dir = mat3(gbufferModelViewInverse) * (sunPosition * 0.01);
 
 #if GROUP == 1
-    vec3 albedo = texelFetch(colortex6, iuv, 0).rgb;
+    uvec2 albedo_specular = texelFetch(colortex6, iuv, 0).xy;
+
+    vec3 albedo = unpackUnorm4x8(albedo_specular.x).rgb;
+    vec4 lm_specular_encoded = unpackUnorm4x8(albedo_specular.y);
 
     vec4 normal_flag_encoded = texelFetch(colortex7, iuv, 0);
-    vec4 lm_specular_encoded = texelFetch(colortex8, iuv, 0).rgba;
 
     Material mat;
     mat.albedo = albedo;

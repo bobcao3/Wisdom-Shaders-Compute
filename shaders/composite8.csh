@@ -16,7 +16,7 @@ uniform sampler2D colortex2;
 uniform sampler2D colortex3;
 uniform sampler2D colortex4;
 uniform sampler2D colortex5;
-uniform sampler2D colortex6;
+uniform usampler2D colortex6;
 uniform sampler2D colortex7;
 uniform sampler2D colortex8;
 uniform sampler2D colortex11;
@@ -95,14 +95,17 @@ void main()
         vec3 world_normal = texelFetch(colortex7, iuv, 0).rgb;
         vec3 view_normal = normalize(mat3(gbufferModelView) * world_normal);
 
-        vec4 lm_specular_encoded = texelFetch(colortex8, iuv, 0).rgba;
+        uvec2 albedo_specular = texelFetch(colortex6, iuv, 0).xy;
+
+        vec3 albedo = unpackUnorm4x8(albedo_specular.x).rgb;
+        vec4 lm_specular_encoded = unpackUnorm4x8(albedo_specular.y);
 
         float roughness = pow2(1.0 - lm_specular_encoded.b);
         float metalic = lm_specular_encoded.a;
 
         float F0 = max(0.04, metalic / (229.0 / 255.0));
 
-        if (texelFetch(colortex7, iuv, 0).a >= 0.0)
+        if (texelFetch(colortex7, iuv, 0).a >= 0.0 && roughness <= 0.5)
         {
             vec3 indirect = texelFetch(colortex5, iuv, 0).rgb;
 

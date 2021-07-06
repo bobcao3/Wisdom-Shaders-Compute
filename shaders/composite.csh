@@ -2,7 +2,7 @@
 
 #include "/libs/compat.glsl"
 
-layout (local_size_x = 8, local_size_y = 8) in;
+layout (local_size_x = 16, local_size_y = 16) in;
 
 const vec2 workGroupsRender = vec2(1.0f, 1.0f);
 
@@ -17,7 +17,7 @@ uniform sampler2D colortex0;
 uniform sampler2D INPUT_TEX;
 uniform sampler2D colortex3;
 uniform sampler2D colortex4;
-uniform sampler2D colortex6;
+uniform usampler2D colortex6;
 uniform sampler2D colortex7;
 uniform sampler2D colortex8;
 uniform sampler2D colortex11;

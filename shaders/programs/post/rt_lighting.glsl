@@ -7,7 +7,7 @@ uniform sampler2D colortex1;
 uniform sampler2D colortex2;
 uniform sampler2D colortex3;
 uniform sampler2D colortex4;
-uniform sampler2D colortex6;
+uniform usampler2D colortex6;
 uniform sampler2D colortex7;
 uniform sampler2D colortex8;
 uniform sampler2D colortex12;
@@ -270,10 +270,12 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
         }
         else
         {
-            vec3 albedo = texelFetch(colortex6, hit_pos, 0).rgb;
+            uvec2 albedo_specular = texelFetch(colortex6, iuv, 0).xy;
+
+            vec3 albedo = unpackUnorm4x8(albedo_specular.x).rgb;
+            vec4 lm_specular_encoded = unpackUnorm4x8(albedo_specular.y);
 
             vec4 normal_flag_encoded = texelFetch(colortex7, hit_pos, 0);
-            vec4 lm_specular_encoded = texelFetch(colortex8, hit_pos, 0).rgba;
 
             mat.albedo = albedo;
             mat.lmcoord = pow(lm_specular_encoded.rg, vec2(5.0));
@@ -365,12 +367,14 @@ void main()
 #ifdef SSPT
     if (depth < 1.0)
     {
+        if (texelFetch(colortex7, iuv, 0).a < 0.0) return;
+
 // #ifdef SPECULAR_ONLY
 //         z1 = z2 = z3 = z4 = uint((texelFetch(noisetex, iuv_orig & 0xFF, 0).r * 65535.0));
 // #else
         z1 = z2 = z3 = z4 = uint(texelFetch(noisetex, iuv_orig & 0xFF, 0).r * 65535.0) ^ uint(frameCounter % 0xFFFF);
 // #endif
-        getRand();
+        // getRand();
 
         vec3 proj_pos = getProjPos(uv, depth);
         vec3 view_pos = proj2view(proj_pos);
@@ -381,22 +385,25 @@ void main()
         vec3 world_normal = texelFetch(colortex7, iuv, 0).rgb;
         vec3 view_normal = normalize(mat3(gbufferModelView) * world_normal);
 
-        vec4 lm_specular_encoded = texelFetch(colortex8, iuv, 0).rgba;
+        uvec2 albedo_specular = texelFetch(colortex6, iuv, 0).xy;
+
+        vec3 albedo = unpackUnorm4x8(albedo_specular.x).rgb;
+        vec4 lm_specular_encoded = unpackUnorm4x8(albedo_specular.y);
 
         vec2 lmcoord = lm_specular_encoded.rg;
 
         float roughness = pow2(1.0 - lm_specular_encoded.b);
         float metalic = lm_specular_encoded.a;
 
+#ifdef SPECULAR_ONLY
+        if (roughness > 0.5) return;
+#endif
+
         bool refine = roughness < 0.3;
 
         vec3 color = vec3(0.0);
 
-        vec3 albedo = texelFetch(colortex6, iuv, 0).rgb;
-
         float samples_taken = 0.0;
-
-        if (texelFetch(colortex7, iuv, 0).a < 0.0) return;
 
         for (int i = 0; i < SSPT_RAYS; i++)
         {
@@ -424,7 +431,6 @@ void main()
 #endif
 
 #ifdef SPECULAR_ONLY
-            if (roughness > 0.5) continue;
             roughness = pow2(roughness);
             sample_dir = ImportanceSampleBeckmann(rand2d, view_normal, -view_dir, roughness, pdf);
             // selectPdf *= pdf;

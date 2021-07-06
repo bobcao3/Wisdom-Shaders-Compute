@@ -6,7 +6,6 @@ const vec2 workGroupsRender = vec2(0.55f, 0.55f);
 
 uniform sampler2D colortex4;
 uniform sampler2D colortex5;
-uniform sampler2D colortex6;
 uniform sampler2D colortex7;
 
 layout (r11f_g11f_b10f) uniform image2D colorimg5;
@@ -124,7 +123,7 @@ void main()
             const f16 color_diff = abs(dot(sample_color, f16vec3(0.2126, 0.7152, 0.0722)) - center_luma);
 
             const f16 w_gaussian = gaussian[i + 2] * gaussian[j + 2];
-            const f16 w_normal = pow(max(f16(0.0), dot(center_normal, sample_normal)), f16(128.0));
+            const f16 w_normal = pow(max(f16(0.0), dot(center_normal, sample_normal)), f16(32.0));
             const f16 w_luma = exp(-color_diff / max(sqrt(center_var), 0.01));
             const f16 w_depth = exp(-f16(abs(sample_depth - center_depth)) / (lds_dz[getIndex(local_id + offset)] * f16(max(abs(i), abs(j))) + f16(0.0001)));
 
