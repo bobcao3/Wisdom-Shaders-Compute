@@ -272,7 +272,7 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
         {
             uvec2 albedo_specular = texelFetch(colortex6, iuv, 0).xy;
 
-            vec3 albedo = unpackUnorm4x8(albedo_specular.x).rgb;
+            vec3 albedo = fromGamma(unpackUnorm4x8(albedo_specular.x).rgb);
             vec4 lm_specular_encoded = unpackUnorm4x8(albedo_specular.y);
 
             vec4 normal_flag_encoded = texelFetch(colortex7, hit_pos, 0);
@@ -296,7 +296,8 @@ void main()
     ivec2 iuv_orig = ivec2(gl_GlobalInvocationID.xy);
 
 #ifdef FULL_RES
-    ivec2 iuv = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 iuv = ivec2(gl_GlobalInvocationID.xy) * ivec2(1, 2);
+    if ((iuv.x & 0x1) == 0) iuv.y += 1;
     vec2 uv = (vec2(iuv) + 0.5) * invWidthHeight;
 
     float depth = texelFetch(depthtex0, iuv, 0).r;
@@ -387,7 +388,7 @@ void main()
 
         uvec2 albedo_specular = texelFetch(colortex6, iuv, 0).xy;
 
-        vec3 albedo = unpackUnorm4x8(albedo_specular.x).rgb;
+        vec3 albedo = fromGamma(unpackUnorm4x8(albedo_specular.x).rgb);
         vec4 lm_specular_encoded = unpackUnorm4x8(albedo_specular.y);
 
         vec2 lmcoord = lm_specular_encoded.rg;
@@ -396,7 +397,10 @@ void main()
         float metalic = lm_specular_encoded.a;
 
 #ifdef SPECULAR_ONLY
-        if (roughness > 0.5) return;
+        // if (roughness > 0.5)
+        // {
+        //     return;
+        // }
 #endif
 
         bool refine = roughness < 0.3;
@@ -431,7 +435,7 @@ void main()
 #endif
 
 #ifdef SPECULAR_ONLY
-            roughness = pow2(roughness);
+            roughness = clamp(roughness - 0.1, 0.0, 1.0);
             sample_dir = ImportanceSampleBeckmann(rand2d, view_normal, -view_dir, roughness, pdf);
             // selectPdf *= pdf;
 #endif
@@ -487,7 +491,7 @@ void main()
 #ifdef SPECULAR_ONLY
             const bool do_specular = true;
 #else
-            const bool do_specular = roughness > 0.5;
+            const bool do_specular = false;
 #endif
             vec3 _kd;
 

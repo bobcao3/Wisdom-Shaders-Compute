@@ -157,6 +157,18 @@ vec3 getF0(float metalic)
     return vec3(1.0 - metalic_generated);
 }
 
+float orenNayarDiffuse(float LdotV, float NdotL, float NdotV, float albedo, float roughness)
+{
+  float s = LdotV - NdotL * NdotV;
+  float t = mix(1.0, max(NdotL, NdotV), step(0.0, s));
+
+  float sigma2 = roughness * roughness;
+  float A = 1.0 + sigma2 * (albedo / (sigma2 + 0.13) + 0.5 / (sigma2 + 0.33));
+  float B = 0.45 * sigma2 / (sigma2 + 0.09);
+
+  return max(0.0, NdotL) * (A + B * s / t) / PI;
+}
+
 vec3 BSDF(vec3 wo, vec3 wi, vec3 N, float metalic, float alpha, vec3 albedo, bool do_specular, out vec3 kD)
 {
     const mat3 o2w = make_coord_space(N);
@@ -195,7 +207,7 @@ vec3 BSDF(vec3 wo, vec3 wi, vec3 N, float metalic, float alpha, vec3 albedo, boo
         kD = 1.0 - kS;
         kD *= 1.0 - F0.r;
 
-        vec3 diffuse = kD / PI * max(wi.z, 0.0);
+        vec3 diffuse = kD * orenNayarDiffuse(dot(wo, wi), wi.z, wo.z, kD.y, alpha);
 
         vec3 specular = F * G / max(0.001, 4.0 * abs(wo.z));
 

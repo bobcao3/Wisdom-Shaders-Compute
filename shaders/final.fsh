@@ -16,9 +16,10 @@ const int colortex7Format = RGBA8_SNORM; // Normals
 const int colortex8Format = RGBA16F; // Atmospheres
 
 const int colortex9Format = R16F; // AO temporal
-const int colortex10Format = RGBA16F; // Color temporal (R11F_G11F_B10F for gameplay)
-const int colortex11Format = RGBA16F; // Color temporal
+const int colortex10Format = R11F_G11F_B10F; // Color temporal
+const int colortex11Format = RGBA16F; // Composite 3
 const int colortex12Format = RGBA16F; // SSPT temporal
+const int colortex13Format = RGBA16F; // SSPT temporal
 
 const int shadowcolor0Format = R32UI;
 const int shadowcolor1Format = R32UI;
@@ -34,6 +35,7 @@ const bool colortex7Clear = false;
 const bool colortex9Clear = false;
 const bool colortex10Clear = false;
 const bool colortex12Clear = false;
+const bool colortex13Clear = false;
 
 const bool shadowcolor1Clear = false;
 
@@ -136,7 +138,7 @@ void main()
 
     color = (new_luma) * pow(color, vec3(1.0 + SATURATION));
 
-    // color = unpackUnorm4x8(texelFetch(colortex6, iuv, 0).r).rgb;
+    // color = texelFetch(colortex3, iuv, 0).rgb;
 
     color = ACESFitted(toGamma(color));
     // color = toHLG(reinhard(color, 1.0), 0.5);

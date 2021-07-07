@@ -31,6 +31,7 @@ uniform vec3 shadowLightPosition;
 #include "/libs/noise.glsl"
 #include "/libs/raytrace.glsl"
 #include "/libs/lighting.glsl"
+#include "/libs/color.glslinc"
 
 #include "/configs.glsl"
 
@@ -66,7 +67,7 @@ void main()
 
         uvec2 albedo_specular = texelFetch(colortex6, iuv, 0).xy;
 
-        vec3 albedo = unpackUnorm4x8(albedo_specular.x).rgb;
+        vec3 albedo = fromGamma(unpackUnorm4x8(albedo_specular.x).rgb);
         vec4 lm_specular_encoded = unpackUnorm4x8(albedo_specular.y);
 
         vec2 lmcoord = lm_specular_encoded.rg;

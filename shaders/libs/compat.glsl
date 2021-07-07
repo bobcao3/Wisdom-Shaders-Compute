@@ -439,4 +439,37 @@ f16vec4 pow8(f16vec4 c)
 }
 #endif
 
+struct Bilinear {
+    vec4 c00, c01, c10, c11;
+    vec2 uv;
+};
+
+vec4 interpBilinear(in Bilinear param)
+{
+    const vec2 uv_floor = floor(param.uv);
+    const vec2 uv_weight = param.uv - uv_floor;
+
+    return mix(
+        mix(param.c00, param.c01, uv_weight.y),
+        mix(param.c10, param.c11, uv_weight.y),
+        uv_weight.x
+    );
+}
+
+vec4 interpBilinearWeighted(in Bilinear param, in vec4 custom_weight)
+{
+    const vec2 uv_floor = floor(param.uv);
+    const vec2 uv_weight = param.uv - uv_floor;
+
+    const float w00 = (1.0 - uv_weight.x) * (1.0 - uv_weight.y) * custom_weight.x;
+    const float w01 = (1.0 - uv_weight.x) * (      uv_weight.y) * custom_weight.y;
+    const float w10 = (      uv_weight.x) * (1.0 - uv_weight.y) * custom_weight.z;
+    const float w11 = (      uv_weight.x) * (      uv_weight.y) * custom_weight.w;
+
+    const float total_weight_inv = 1.0 / (w00 + w01 + w10 + w11);
+    const vec4 interp = param.c00 * w00 + param.c01 * w01 + param.c10 * w10 + param.c11 * w11;
+
+    return interp * total_weight_inv;
+}
+
 #endif

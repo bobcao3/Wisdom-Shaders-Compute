@@ -70,8 +70,6 @@ void main()
 #endif
 
     albedo *= color;
-    
-    albedo.rgb = fromGamma(albedo.rgb);
 
     if (albedo.a < 0.1)
     {

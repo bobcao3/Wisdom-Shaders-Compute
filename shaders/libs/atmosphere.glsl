@@ -21,15 +21,9 @@ const float Ra = 5050e3;
 const float Hr = 15e3;
 const float Hm = 2.6e3;
 
-const vec3 I0 = vec3(30.0);
+const vec3 I0 = vec3(30.0) * vec3(1.0, 0.8794, 0.8267);
 
-#define CLOUD_STEPS 6 // [2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32]
-
-#ifdef LINEAR_ATMOS
-const int steps = 4;
-#else
-const int steps = 16;
-#endif
+const int steps = 8;
 const int stepss = 20;
 
 vec3 I = I0; // * (1.0 - cloud_coverage * 0.7);
@@ -91,8 +85,8 @@ float escape(in vec3 p, in vec3 d, in float R) {
 
 vec2 densitiesMap(in vec2 uv)
 {
-	float h = uv.x * (Ra - R0);
-	float phi = (uv.y - 0.5) * 3.1415926;
+	float h = (exp(uv.x * 5.0)) / (exp(5.0)) * (Ra - R0);
+	float phi = uv.y * 3.1415926;
 
 	vec2 depth = vec2(0.0);
 
@@ -102,7 +96,7 @@ vec2 densitiesMap(in vec2 uv)
 	float Ls = escape(P, D, Ra);
 	// float Lground = escape(P, D, R0);
 
-	// if (Lground != -1) Ls = min(Ls, Lground
+	// if (Lground != -1) Ls = min(Ls, Lground);
 
 	float u0s = - (Ls - 1.0) / (1.0 - exp2(stepss));
 
@@ -130,14 +124,13 @@ vec2 getDensityFromMap(vec3 p, vec3 d)
 	vec2 dir = vec2(0.0, dot(d, down));
 	dir.x = length(d - down * dir.y);
 
-	float phi = (atan(dir.y / dir.x) / 3.1415926) + 0.5;
+	float phi = (atan(dir.y / dir.x) / 3.1415926);
 
-	vec2 uv = vec2(h * min(128.0 * invWidthHeight.x, 0.25), mod(phi, 2.0) * min(2.0 * 384.0 * invWidthHeight.y, 0.25) + 0.5);
-	uv.x = clamp(uv.x, 0.0, 0.25);
+	vec2 uv = vec2((log(clamp(h, 0.0, 1.0)) + 5.0) * 0.2, mod(phi, 2.0));
 
 	// return vec2(densitiesMap(uv));
-	// return texture(colortex3, uv).xy;
-	return imageLoad(colorimg3, ivec2(uv * vec2(viewWidth, viewHeight))).xy;
+	return texture(colortex3, uv * vec2(0.25) + vec2(0.0, 0.5)).xy;
+	// return imageLoad(colorimg3, ivec2(uv * vec2(viewWidth, viewHeight))).xy;
 }
 
 void inScatter(vec3 p, vec3 D, float radius, vec2 depth, vec2 des, out vec3 R, out vec3 M)
@@ -186,23 +179,14 @@ vec4 scatter(vec3 o, vec3 d, vec3 Ds, float lmax, float nseed, bool cloud) {
 	vec3 R = vec3(0.0), M = vec3(0.0), Mc = vec3(0.0);
 	vec3 R_moon = vec3(0.0), M_moon = vec3(0.0), Mc_moon = vec3(0.0);
 
-#ifndef LINEAR_ATMOS
 	float u0 = - (L - 1.0) / (1.0 - exp2(steps + 1));
-#else
-	float dl = L / float(steps + 1);
-#endif
 
 	float total = 0.0;
 	for (int i = 0; i < steps; ++i) {
-
-#ifndef LINEAR_ATMOS
 		float dl, l;
 
 		dl = u0 * exp2(i + nseed);
 		l = -u0 * (1.0 - exp2(i + nseed + 1));
-#else
-		float l = float(i + nseed) * dl;
-#endif
 
 		vec3 p = o + d * l;
 
@@ -211,21 +195,9 @@ vec4 scatter(vec3 o, vec3 d, vec3 Ds, float lmax, float nseed, bool cloud) {
 		des *= vec2(dl);
 		depth += des;
 
-#ifdef VL
-		float shadow_depth;
-
-        vec3 shadow_pos_linear = world2shadowProj(d * l) * 0.5 + 0.5;
-
-        float shadow = shadowTexSmooth(shadow_pos_linear, shadow_depth, 0.0);
-
-		vec3 Ri, Mi;
-		inScatter(p, Ds, Ra, depth, des, Ri, Mi); R += Ri * shadow; M += Mi * shadow;
-		inScatter(p, -Ds, Ra, depth, des, Ri, Mi); R_moon += Ri * shadow; M_moon += Mi * shadow;
-#else
 		vec3 Ri, Mi;
 		inScatter(p, Ds, Ra, depth, des, Ri, Mi); R += Ri; M += Mi;
 		inScatter(p, -Ds, Ra, depth, des, Ri, Mi); R_moon += Ri; M_moon += Mi;
-#endif
 	}
 
 #ifdef DISABLE_MIE

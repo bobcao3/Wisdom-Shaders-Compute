@@ -4,8 +4,8 @@
 
 layout (local_size_x = 8, local_size_y = 8) in;
 
-const vec2 workGroupsRender = vec2(0.5f, 0.5f);
+const vec2 workGroupsRender = vec2(1.0f, 1.0f);
 
-#define GROUP 0
+// Full res lighting
 
 #include "/programs/post/deferred_lighting.glsl"

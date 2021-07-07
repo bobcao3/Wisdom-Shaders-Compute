@@ -131,4 +131,20 @@ vec3 world2shadowProj(in vec3 world_pos) {
     return spos;
 }
 
+vec3 world2shadowLinear(in vec3 world_pos) {
+    vec4 shadow_proj_pos = vec4(world_pos, 1.0);
+    shadow_proj_pos = shadowMVP * shadow_proj_pos;
+    shadow_proj_pos.xyz /= shadow_proj_pos.w;
+    vec3 spos = shadow_proj_pos.xyz;
+
+    return spos;
+}
+
+vec3 shadowLinear2Proj(in vec3 spos) {
+    spos.xy /= length(spos.xy) * 0.85 + 0.15;
+    spos.z *= 0.5;
+
+    return spos;
+}
+
 #endif

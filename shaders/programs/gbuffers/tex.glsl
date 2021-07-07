@@ -66,8 +66,6 @@ void main()
     {
         if (texelFetch(noisetex, ivec2(gl_FragCoord.st) & 0xFF, 0).r > albedo.a) discard;
     }
-    
-    albedo.rgb = fromGamma(albedo.rgb);
 
     vec4 spec = texture(specular, uv);
 
@@ -85,7 +83,7 @@ void main()
     f16vec3 normal_tex = f16vec3(texture(normals, uv).rgb); normal_tex.rg = normal_tex.rg * f16(2.0) - f16(1.0);
     f16vec3 normal_sampled = f16vec3(normal_tex.rg, sqrt(f16(1.0) - dot(normal_tex.xy, normal_tex.xy)));
 
-    normal_sampled = normalize(mix(f16vec3(tbn * vec3(normal_sampled)), normal, f16(0.4)));
+    normal_sampled = normalize(mix(f16vec3(tbn * vec3(normal_sampled)), normal, f16(0.2)));
 
     albedo_specular = uvec2(packUnorm4x8(albedo), packUnorm4x8(vec4(lmcoord, spec.rg)));
     normal_flag = vec4(normal_sampled, flag); // Depth, Flag, Normal
