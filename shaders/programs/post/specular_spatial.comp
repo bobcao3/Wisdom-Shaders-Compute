@@ -55,7 +55,8 @@ void main()
         return;
     }
 
-    z1 = z2 = z3 = z4 = uint((texelFetch(noisetex, iuv & 0xFF, 0).r * 65535.0) * 1000) ^ uint(frameCounter * 11);
+    z1 = z2 = z3 = z4 = uint((texelFetch(noisetex, iuv_orig & 0xFF, 0).r * 65535.0) * 1000) ^ uint(frameCounter * 11);
+    getRand();
 
     vec3 color = vec3(0.0);
 
@@ -80,14 +81,16 @@ void main()
     vec3 dominant_direction = getDominantDirection(view_normal, normalize(view_pos), roughness);
     mat3 o2w = make_coord_space(dominant_direction);
 
-    float total_weight = 1e-5;
+    float total_weight = 1.0;
+
+    color += texelFetch(colortex5, iuv_orig, 0).rgb;
 
     for (int i = 0; i < 8; i++)
     {
         float r = getRand();
-        float phi = getRand() * 2.0 * 3.1415926;
+        float phi = (float(i) + getRand()) / 8.0 * 2.0 * 3.1415926;
 
-        vec2 offset = vec2(cos(phi), sin(phi)) * r * 0.1;
+        vec2 offset = vec2(cos(phi), sin(phi)) * r * 0.5;
         vec3 offset_view_pos = view_pos + o2w * vec3(offset, 0.0);
         vec3 offset_proj_pos = view2proj(offset_view_pos);
 
@@ -109,7 +112,13 @@ void main()
             pow(max(0.0, dot(sample_normal, world_normal)), 128.0) *
             float(sample_depth < 1.0);
 
-        color += texture(colortex5, clamp(sample_uv * 0.5, vec2(0.0), vec2(0.5))).rgb * weight;
+        if (isNanInf(weight)) weight = 0.0;
+
+        vec3 s = texture(colortex5, clamp(sample_uv * 0.5, vec2(0.0), vec2(0.5))).rgb;
+
+        if (isNanInf(s)) s = vec3(0.0);
+
+        color += s * weight;
         total_weight += weight;
     }
 

@@ -50,6 +50,7 @@ layout (r11f_g11f_b10f) uniform image2D OUTPUT_IMAGE;
 vec3 compute_lighting(ivec2 iuv, float depth)
 {
     z1 = z2 = z3 = z4 = uint((texelFetch(noisetex, iuv & 0xFF, 0).r * 65535.0) * 1000) ^ uint(frameCounter * 11);
+    getRand();
 
     vec2 uv = (vec2(iuv) + 0.5) * invWidthHeight;
 

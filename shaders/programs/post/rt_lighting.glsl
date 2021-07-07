@@ -375,7 +375,7 @@ void main()
 // #else
         z1 = z2 = z3 = z4 = uint(texelFetch(noisetex, iuv_orig & 0xFF, 0).r * 65535.0) ^ uint(frameCounter % 0xFFFF);
 // #endif
-        // getRand();
+        getRand();
 
         vec3 proj_pos = getProjPos(uv, depth);
         vec3 view_pos = proj2view(proj_pos);

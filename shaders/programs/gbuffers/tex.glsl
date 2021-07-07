@@ -60,7 +60,7 @@ void main()
     vec4 albedo = texture(tex, uv);
 #endif
 
-    albedo *= color;
+    albedo.rgb *= color.rgb;
 
     if (albedo.a < 0.99)
     {
@@ -71,7 +71,7 @@ void main()
 
 #ifndef MC_TEXTURE_FORMAT_LAB_PBR
     spec.g *= (229.0 / 255.0);
-    spec.r = sqrt(spec.r);
+    spec.r = (spec.r);
 #endif
 
     f16vec3 normal = f16vec3(unpackSnorm4x8(normal_enc).rgb);
