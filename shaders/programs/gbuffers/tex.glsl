@@ -84,7 +84,7 @@ void main()
     
 #ifdef MC_TEXTURE_FORMAT_LAB_PBR
     normal_tex.rg = normal_tex.rg * f16(2.0) - f16(1.0);
-    f16vec3 normal_sampled = normalize(f16vec3(normal_tex.rg, sqrt(abs(f16(1.0) - dot(normal_tex.xy, normal_tex.xy)))));
+    f16vec3 normal_sampled = normalize(f16vec3(normal_tex.rg, sqrt(max(f16(0.0), f16(1.0) - dot(normal_tex.xy, normal_tex.xy)))));
 #else
     f16vec3 normal_sampled = normal_tex.rgb * f16(2.0) - f16(1.0);
 #endif

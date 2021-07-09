@@ -479,7 +479,15 @@ void main()
             if (traceRayHybrid(iuv, view_pos, view_normal, sample_dir, world_pos, world_normal, true, lmcoord.y, mat, hit_view_pos, hit_wpos, hit_iuv, real_sampled_dir, transmission))
             {
                 // Hit
-                sample_rad = getLighting(mat, real_sampled_dir, hit_view_pos, hit_wpos, vec3(1.0)) * transmission;
+                sample_rad = getLighting(mat, real_sampled_dir, hit_view_pos, hit_wpos, vec3(1.0));
+
+#ifdef DIFFUSE_ONLY
+                if (hit_iuv != ivec2(-1))
+                {
+                    vec2 history_uv = vec2(hit_iuv) * invWidthHeight + texelFetch(colortex1, hit_iuv, 0).rg;
+                    sample_rad = max(sample_rad, vec3(texelFetch(colortex12, hit_iuv >> 1, 0).rgb * mat.albedo / PI));
+                }
+#endif
 
 #ifdef SPECULAR_ONLY
                 if (hit_iuv != ivec2(-1))
@@ -487,6 +495,8 @@ void main()
                     sample_rad = max(sample_rad, vec3(texelFetch(colortex2, hit_iuv, 0).rgb));
                 }
 #endif
+
+                sample_rad *= transmission;
             } else {
                 // Skybox
                 vec2 skybox_uv = project_skybox2uv(normalize(mat3(gbufferModelViewInverse) * sample_dir));
