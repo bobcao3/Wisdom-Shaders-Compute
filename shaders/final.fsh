@@ -138,8 +138,6 @@ void main()
 
     color = (new_luma) * pow(color, vec3(1.0 + SATURATION));
 
-    // color = texelFetch(colortex3, iuv, 0).rgb;
-
     color = ACESFitted(toGamma(color));
     // color = toHLG(reinhard(color, 1.0), 0.5);
     // color = toGamma(reinhard(color, 1.0));
@@ -170,6 +168,8 @@ void main()
     //         color = mix(vec3(0.0, 1.0, 0.0), vec3(1.0, 0.0, 0.0), clamp(float(d) / 8.0, 0.0, 1.0));
     //     }
     // }
+
+    // color = texelFetch(colortex7, iuv, 0).rgb;
 
     if (iuv.x < 256 && iuv.y < 128)
     {

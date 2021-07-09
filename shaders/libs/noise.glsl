@@ -159,7 +159,7 @@ float getRand() {
     z2 = TausStep(z2, 2, 25, 4, 4294967288);   // p2=2^30-1
     z3 = TausStep(z3, 3, 11, 17, 4294967280);  // p3=2^28-1
     z4 = LCGStep(z4, 1664525, 1013904223);     // p4=2^32
-    return clamp(2.3283064365387e-10 * float(z1 ^ z2 ^ z3 ^ z4), 1e-6, 1.0 - 1e-6);
+    return clamp(2.3283064365387e-10 * float(z1 ^ z2 ^ z3 ^ z4), 1e-5, 1.0 - 1e-5);
 }
 
 bool coin_toss()

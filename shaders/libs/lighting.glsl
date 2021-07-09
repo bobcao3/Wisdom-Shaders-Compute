@@ -86,7 +86,7 @@ float getTheta(vec3 v)
 float lambda(float theta, float alpha)
 {
     float absTanTheta = abs(tan(theta));
-    if (isinf(absTanTheta)) return 0.0;
+    if (isNanInf(absTanTheta)) return 0.0;
     float a = 1.0 / (alpha * absTanTheta);
     if (a >= 1.6) return 0.0;
     return (1.0 - 1.259 * a + 0.396 * a * a) /
@@ -102,7 +102,7 @@ float BSDF_G(vec3 v, vec3 l, float alpha)
 // https://www.pbr-book.org/3ed-2018/Reflection_Models/Microfacet_Models BeckmannDistribution::D
 float BSDF_D_theta_h(float theta_h, float alpha)
 {
-    return exp(-pow2(tan(theta_h)) / pow2(alpha)) / (PI * pow2(alpha) * pow4(cos(theta_h)));
+    return exp(-pow2(tan(theta_h)) / max(1e-5, pow2(alpha))) / max(1e-5, PI * pow2(alpha) * pow4(cos(theta_h)));
 }
 
 float BSDF_D(vec3 h, float alpha)
@@ -113,14 +113,14 @@ float BSDF_D(vec3 h, float alpha)
 
 vec3 ImportanceSampleBeckmann(vec2 rand, vec3 N, vec3 wo, float alpha, out float pdf)
 {
-    float theta_h = atan(sqrt(-alpha * alpha * log(1.0 - rand.x)));
+    float theta_h = atan(sqrt(max(0.0, -alpha * alpha * log(1.0 - rand.x))));
     float phi_h = rand.y * PI * 2.0;
 
     vec3 h = vec3(sin(theta_h) * cos(phi_h), sin(theta_h) * sin(phi_h), cos(theta_h));
     vec3 world_h = make_coord_space(N) * h;
     vec3 wi = reflect(-wo, world_h);
 
-    float cos_theta_h = h.z;
+    float cos_theta_h = clamp(h.z, 0.0, 1.0);
     float sin_theta_h = sqrt(1.0 - pow2(cos_theta_h));
 
     float pdfTheta = PI * 2.0 * BSDF_D_theta_h(theta_h, alpha) * sin_theta_h * cos_theta_h / (4.0 * dot(wi, world_h));
@@ -145,8 +145,8 @@ vec3 MetalF(float metalic, float cosTheta)
 	float cosTheta2 = cosTheta * cosTheta;
 	vec3 N2K2 = N * N + K * K;
 
-	vec3 Rs = (N2K2 - NcosTheta + cosTheta2) / (N2K2 + NcosTheta + cosTheta2);
-	vec3 Rp = (N2K2 * cosTheta2 - NcosTheta + 1.0) / (N2K2 * cosTheta2 + NcosTheta + 1.0);
+	vec3 Rs = (N2K2 - NcosTheta + cosTheta2) / max(vec3(1e-5), N2K2 + NcosTheta + cosTheta2);
+	vec3 Rp = (N2K2 * cosTheta2 - NcosTheta + 1.0) / max(vec3(1e-5), N2K2 * cosTheta2 + NcosTheta + 1.0);
 
 	return (Rs + Rp) * 0.5;
 }
@@ -179,8 +179,8 @@ vec3 BSDF(vec3 wo, vec3 wi, vec3 N, float metalic, float alpha, vec3 albedo, boo
 
     vec3 h = normalize(wo + wi);
 
-    if (wo.z < 0.0) return vec3(0.0);
-    if (wi.z < 0.0) return vec3(0.0);
+    if (wo.z <= 0.0) return vec3(0.0);
+    if (wi.z <= 0.0) return vec3(0.0);
 
     float G = BSDF_G(wo, wi, alpha);
     float D = BSDF_D(h, alpha);

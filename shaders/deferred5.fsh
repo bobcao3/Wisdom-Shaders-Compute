@@ -36,7 +36,7 @@ uniform usampler2D shadowcolor0;
 
 vec4 sampleHistory(ivec2 iuv, out float history_length)
 {
-    history_length = texelFetch(colortex9, iuv, 0).r;
+    history_length = clamp(texelFetch(colortex9, iuv, 0).r, 0.0, float(MAX_SVGF_TEMPORAL_LENGTH));
     vec4 history = texelFetch(colortex12, iuv, 0);
     if (isNanInf(history))
     {
@@ -118,7 +118,7 @@ void main()
 
         if (history_uv.x < 0.0 || history_uv.y < 0.0 || history_uv.x > 1.0 || history_uv.y > 1.0) history_length = 1.0;
 
-        float weight = 1.0 / history_length;
+        float weight = 1.0 / max(1.0, history_length - 1.0);
 
         if (squared)
         {
@@ -128,8 +128,8 @@ void main()
             float ema_last = last_moments.x;
             float ema2_last = last_moments.y;
 
-            float ema = ema_last * (history_length - 1.0) * weight + x * weight;
-            float ema2 = ema2_last * (history_length - 1.0) * weight + pow2(x) * weight;
+            float ema = mix(ema_last, x, weight);
+            float ema2 = mix(ema2_last, x, weight);
             float emvar = abs(pow2(ema) - ema2);
 
             if (history_length < 8)
@@ -151,15 +151,15 @@ void main()
                 emvar = x2 * (1.0 / 25.0) - ema * ema + 0.5;
             }
 
-            float history_factor = 8.0 - history_length * (7.0 / 64.0);
-            emvar = max((history_factor - 1.0) * 0.1, emvar * history_factor);
+            float history_factor = weight * 4.0;
+            emvar = max(emvar * 0.1, emvar * history_factor);
 
             temporal = vec3(ema, ema2, 0.0);
             color = vec3(emvar);
         }
         else
         {
-            color = history.rgb * (history_length - 1.0) * weight + color * weight;
+            color = mix(history.rgb, color, weight);
             temporal = color;
         }
 

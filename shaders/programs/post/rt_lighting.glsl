@@ -306,6 +306,20 @@ void main()
     vec2 uv = (vec2(iuv) + 1.0) * invWidthHeight;
 
     float depth = texelFetch(colortex4, iuv_orig, 0).r;
+
+    float d00 = texelFetch(depthtex0, iuv              , 0).r;
+    float d01 = texelFetch(depthtex0, iuv + ivec2(0, 1), 0).r;
+    float d10 = texelFetch(depthtex0, iuv + ivec2(1, 0), 0).r;
+    float d11 = texelFetch(depthtex0, iuv + ivec2(1, 1), 0).r;
+
+    if (abs(depth - d00) < 1e-6)
+        iuv = iuv + ivec2(0);
+    else if (abs(depth - d01) < 1e-6)
+        iuv = iuv + ivec2(0, 1);
+    else if (abs(depth - d10) < 1e-6)
+        iuv = iuv + ivec2(1, 0);
+    else
+        iuv = iuv + ivec2(1, 1);
 #endif
 
     ivec2 halfscreen_offset = ivec2(viewWidth, viewHeight) >> 1;
@@ -368,7 +382,11 @@ void main()
 #ifdef SSPT
     if (depth < 1.0)
     {
-        if (texelFetch(colortex7, iuv, 0).a < 0.0) return;
+        if (texelFetch(colortex7, iuv, 0).a < 0.0)
+        {
+            imageStore(colorimg5, iuv_orig, vec4(0.0));
+            return;
+        }
 
 // #ifdef SPECULAR_ONLY
 //         z1 = z2 = z3 = z4 = uint((texelFetch(noisetex, iuv_orig & 0xFF, 0).r * 65535.0));
@@ -397,7 +415,7 @@ void main()
         float metalic = lm_specular_encoded.a;
 
 #ifdef SPECULAR_ONLY
-        // if (roughness > 0.5)
+        // if (roughness > 0.7)
         // {
         //     return;
         // }
@@ -511,7 +529,7 @@ void main()
             color += sample_rad;
 
 #ifdef RAY_GUIDING
-            contributions[gl_LocalInvocationID.x][gl_LocalInvocationID.y][i] = dot(sample_rad, vec3(0.3, 0.5, 0.2));
+            contributions[gl_LocalInvocationID.x][gl_LocalInvocationID.y][i] = dot(sample_rad * selectPdf, vec3(0.3, 0.5, 0.2));
 #endif
         }
 
@@ -553,7 +571,7 @@ void main()
             {
                 float last_contrib = texelFetch(colortex12, iuv_orig + halfscreen_offset + ivec2(i, j), 0).r;
                 float new_contrib = weights[i][j] / normalize_max;
-                new_contrib = max(last_contrib * 0.97, new_contrib);
+                new_contrib = max(last_contrib * 0.9, new_contrib);
 
                 imageStore(colorimg5, iuv_orig + halfscreen_offset + ivec2(i, j), vec4(new_contrib, 0.0, 0.0, 1.0));
             }

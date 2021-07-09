@@ -103,17 +103,14 @@ void main()
         float roughness = pow2(1.0 - lm_specular_encoded.b);
         float metalic = lm_specular_encoded.a;
 
-        float F0 = clamp(1.0 - metalic / (229.0 / 255.0), 0.02, 1.0);
+        float F0 = clamp(metalic / (229.0 / 255.0), 0.02, 1.0);
 
         if (texelFetch(colortex7, iuv, 0).a >= 0.0)
         {
             vec3 indirect = texelFetch(colortex5, ivec2(iuv.x, iuv.y) / 2, 0).rgb;
 
-            vec3 integrated_brdf = IntegratedPolynomial(F0, roughness, abs(dot(-view_dir, view_normal)));
-            // color += indirect;
-            color += integrated_brdf * indirect;
-
-            // color = vec3(F0);
+            // vec3 integrated_brdf = IntegratedPolynomial(F0, roughness, max(0.0, dot(-view_dir, view_normal)));
+            color += indirect;
         }
 
         // if (iuv.x <= 256 && iuv.y <= 256)

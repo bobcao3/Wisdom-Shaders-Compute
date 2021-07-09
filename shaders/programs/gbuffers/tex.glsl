@@ -80,10 +80,16 @@ void main()
     f16vec3 bitangent = normalize(cross(tangent, normal));
     mat3 tbn = mat3(tangent, bitangent, normal);
 
-    f16vec3 normal_tex = f16vec3(texture(normals, uv).rgb); normal_tex.rg = normal_tex.rg * f16(2.0) - f16(1.0);
-    f16vec3 normal_sampled = f16vec3(normal_tex.rg, sqrt(f16(1.0) - dot(normal_tex.xy, normal_tex.xy)));
+    f16vec3 normal_tex = f16vec3(texture(normals, uv).rgb);
+    
+#ifdef MC_TEXTURE_FORMAT_LAB_PBR
+    normal_tex.rg = normal_tex.rg * f16(2.0) - f16(1.0);
+    f16vec3 normal_sampled = normalize(f16vec3(normal_tex.rg, sqrt(abs(f16(1.0) - dot(normal_tex.xy, normal_tex.xy)))));
+#else
+    f16vec3 normal_sampled = normal_tex.rgb * f16(2.0) - f16(1.0);
+#endif
 
-    normal_sampled = normalize(mix(f16vec3(tbn * vec3(normal_sampled)), normal, f16(0.2)));
+    normal_sampled = f16vec3(normalize(tbn * vec3(normal_sampled) + normal * 0.3));
 
     albedo_specular = uvec2(packUnorm4x8(albedo), packUnorm4x8(vec4(lmcoord, spec.rg)));
     normal_flag = vec4(normal_sampled, flag); // Depth, Flag, Normal
