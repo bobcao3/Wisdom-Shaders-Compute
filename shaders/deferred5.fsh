@@ -92,6 +92,20 @@ void main()
         vec3 curr_color = texelFetch(colortex5, iuv_orig, 0).rgb;
         color = curr_color;
 
+        vec3 min_neighbour = color;
+        vec3 max_neighbour = color;
+        
+        vec3 sample00 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2(-1, -1)).rgb; min_neighbour = min(min_neighbour, sample00); max_neighbour = max(max_neighbour, sample00);
+        vec3 sample10 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2( 0, -1)).rgb; min_neighbour = min(min_neighbour, sample10); max_neighbour = max(max_neighbour, sample10);
+        vec3 sample20 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2( 1, -1)).rgb; min_neighbour = min(min_neighbour, sample20); max_neighbour = max(max_neighbour, sample20);
+        vec3 sample01 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2(-1,  0)).rgb; min_neighbour = min(min_neighbour, sample01); max_neighbour = max(max_neighbour, sample01);
+        vec3 sample21 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2( 1,  0)).rgb; min_neighbour = min(min_neighbour, sample21); max_neighbour = max(max_neighbour, sample21);
+        vec3 sample02 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2(-1,  1)).rgb; min_neighbour = min(min_neighbour, sample02); max_neighbour = max(max_neighbour, sample02);
+        vec3 sample12 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2( 0,  1)).rgb; min_neighbour = min(min_neighbour, sample12); max_neighbour = max(max_neighbour, sample12);
+        vec3 sample22 = texelFetchOffset(colortex5, iuv_orig, 0, ivec2( 1,  1)).rgb; min_neighbour = min(min_neighbour, sample22); max_neighbour = max(max_neighbour, sample22);
+
+        color = clamp(color, min_neighbour, max_neighbour);
+
         vec2 history_uv = uv + texelFetch(colortex1, iuv, 0).rg;
         
         vec2 history_iuv = history_uv * 0.5 * vec2(viewWidth, viewHeight) - vec2(0.5);
@@ -151,7 +165,7 @@ void main()
                 emvar = x2 * (1.0 / 25.0) - ema * ema + 0.5;
             }
 
-            float history_factor = weight * 4.0;
+            float history_factor = weight * 32.0;
             emvar = max(emvar * 0.1, emvar * history_factor);
 
             temporal = vec3(ema, ema2, 0.0);
@@ -160,7 +174,7 @@ void main()
         else
         {
             color = mix(history.rgb, color, weight);
-            temporal = color;
+            temporal = mix(history.rgb, curr_color, weight);
         }
 
         if (curr_color.r > 1e5) color = vec3(1.0, 0.0, 0.0);

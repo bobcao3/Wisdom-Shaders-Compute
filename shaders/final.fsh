@@ -132,6 +132,14 @@ void main()
 
 #ifdef HISTOGRAM_MEDIAN
     new_luma = clamp(new_luma * (0.07 / median_luma), new_luma * 0.7, new_luma * 30.0);
+
+    /*
+    float L_median = median_luma;
+    float keyVal = 1.03 - 2.0/( 2.0 + log2(L_median + 1.0) / log2(10.0));
+    float exposureTarget = keyVal * 2.0 / clamp(L_median, 0.01, 30.0);
+
+    new_luma = new_luma * exposureTarget;
+    */
 #endif
 
 #define SATURATION 0.4 // [-1.0 -0.8 -0.6 -0.4 -0.2 0.0 0.2 0.4 0.6 0.8 1.0]

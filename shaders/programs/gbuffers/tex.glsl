@@ -89,7 +89,7 @@ void main()
     f16vec3 normal_sampled = normal_tex.rgb * f16(2.0) - f16(1.0);
 #endif
 
-    normal_sampled = f16vec3(normalize(tbn * vec3(normal_sampled) + normal * 0.3));
+    normal_sampled = f16vec3(normalize(tbn * vec3(normal_sampled) + normal * 0.7));
 
     albedo_specular = uvec2(packUnorm4x8(albedo), packUnorm4x8(vec4(lmcoord, spec.rg)));
     normal_flag = vec4(normal_sampled, flag); // Depth, Flag, Normal
