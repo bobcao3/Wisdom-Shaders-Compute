@@ -43,32 +43,45 @@ vec3 IntegratedPolynomial(float F0, float alpha, float ndotv)
     const float y = ndotv;
 
     // Epoch 9 MSE= tensor(0.0283)
-    // b tensor([ 0.7437,  3.1780, -0.1140, -1.4741, 10.4470, -4.8231])
-    // d tensor([-8.0785,  5.2565, -0.7135,  1.5604, 17.2632,  8.3191, -2.7194])
-    // bias tensor([121.4076])
+    // b tensor([-0.4953,  0.7145,  0.5535, -5.0758,  8.3037, -5.1153])
+    // d tensor([ 0.6270,  1.2284,  0.4889, -2.8156,  0.6686, -0.8450,  2.9721])
+    // bias tensor([49.0148])
  
-    float b1 = -0.1688;
-    float b2 = 1.895;
-    float b3 = 0.9903;
-    float b4 = -4.853;
-    float b5 = 8.404;
-    float b6 = -5.069;
+    float b1 = -0.4953;
+    float b2 = 0.7145;
+    float b3 = 0.5535;
+    float b4 = -5.0758;
+    float b5 = 8.3037;
+    float b6 = -5.1153;
     float bias = clamp(min(b1 * x + b2 * x * x, b3 + b4 * y + b5 * y * y + b6 * y * y * y), 0.0, 1.0);
  
-    float d0 = 0.6045;
-    float d1 = 1.699;
-    float d2 = -0.5228;
-    float d3 = -3.603;
-    float d4 = 1.404;
-    float d5 = 0.1939;
-    float d6 = 2.661;
+    float d0 = 0.6270;
+    float d1 = 1.2284;
+    float d2 = 0.4889;
+    float d3 = -2.8156;
+    float d4 = 0.6686;
+    float d5 = -0.8450;
+    float d6 = 2.9721;
     const float delta = clamp(d0 + d1 * x + d2 * y + d3 * x * x + d4 * x * y + d5 * y * y + d6 * x * x * x, 0.0, 1.0);
     const float scale = delta - bias;
 
-    const float bias_mult = 14.0;
+    const float bias_mult = 49.0148;
  
     bias *= clamp(bias_mult * F0, 0.0, 1.0);
     return vec3(F0 * scale + bias);
+}
+
+vec3 IntegratedPolynomial2(float metalic, float alpha, float ndotv)
+{
+    ndotv = sqrt(ndotv);
+
+    float a = 0.4302;
+    float b = -1.2618;
+    float c = 0.7657;
+    float d = 0.0723;
+    float e = 1.0;
+
+    return vec3(exp(a * alpha + b - c * ndotv) * (d + e * metalic) * 3.14159);
 }
 
 float gaussian[] = float[] (
@@ -103,14 +116,16 @@ void main()
         float roughness = pow2(1.0 - lm_specular_encoded.b);
         float metalic = lm_specular_encoded.a;
 
-        float F0 = clamp(metalic / (229.0 / 255.0), 0.02, 1.0);
+        float converted_metalic = clamp(metalic / (229.0 / 255.0), 0.02, 0.98);
 
         if (texelFetch(colortex7, iuv, 0).a >= 0.0)
         {
             vec3 indirect = texelFetch(colortex5, ivec2(iuv.x, iuv.y) / 2, 0).rgb;
 
-            vec3 integrated_brdf = IntegratedPolynomial(F0, roughness, max(0.0, dot(-view_dir, view_normal)));
-            color += integrated_brdf * indirect;
+            vec3 integrated_brdf1 = IntegratedPolynomial(converted_metalic, roughness, max(0.0, dot(-view_dir, view_normal)));
+            vec3 integrated_brdf2 = IntegratedPolynomial2(converted_metalic, roughness, max(0.0, dot(-view_dir, view_normal)));
+            
+            color += integrated_brdf2 * indirect;
         }
 
         // if (iuv.x <= 256 && iuv.y <= 256)

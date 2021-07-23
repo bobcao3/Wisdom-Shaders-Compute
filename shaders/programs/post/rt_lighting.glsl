@@ -453,7 +453,7 @@ void main()
 #endif
 
 #ifdef SPECULAR_ONLY
-            roughness = clamp(roughness - 0.1, 0.0, 1.0);
+            // roughness = clamp(roughness - 0.1, 0.0, 1.0);
             sample_dir = ImportanceSampleBeckmann(rand2d, view_normal, -view_dir, roughness, pdf);
             // selectPdf *= pdf;
 #endif
