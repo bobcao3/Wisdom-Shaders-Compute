@@ -7,7 +7,7 @@ uniform sampler2D colortex1;
 uniform sampler2D colortex2;
 uniform sampler2D colortex3;
 uniform sampler2D colortex4;
-uniform usampler2D colortex6;
+uniform sampler2D colortex6;
 uniform sampler2D colortex7;
 uniform sampler2D colortex8;
 uniform sampler2D colortex12;
@@ -21,8 +21,6 @@ layout (r11f_g11f_b10f) uniform image2D colorimg5;
 
 #include "/configs.glsl"
 
-// uniform sampler2D shadowcolor1;
-
 #include "/libs/shadows.glsl"
 
 uniform vec3 shadowLightPosition;
@@ -31,8 +29,6 @@ uniform vec3 cameraPosition;
 #define SSPT
 
 #include "/libs/lighting.glsl"
-
-//uniform usampler2D shadowcolor0;
 
 layout (r32ui) uniform uimage2D shadowcolorimg0;
 
@@ -270,7 +266,7 @@ bool traceRayHybrid(ivec2 iuv, vec3 view_pos, vec3 view_normal, vec3 sample_dir,
         }
         else
         {
-            uvec2 albedo_specular = texelFetch(colortex6, iuv, 0).xy;
+            uvec2 albedo_specular = floatBitsToUint(texelFetch(colortex6, iuv, 0).xy);
 
             vec3 albedo = fromGamma(unpackUnorm4x8(albedo_specular.x).rgb);
             vec4 lm_specular_encoded = unpackUnorm4x8(albedo_specular.y);
@@ -404,7 +400,7 @@ void main()
         vec3 world_normal = texelFetch(colortex7, iuv, 0).rgb;
         vec3 view_normal = normalize(mat3(gbufferModelView) * world_normal);
 
-        uvec2 albedo_specular = texelFetch(colortex6, iuv, 0).xy;
+        uvec2 albedo_specular = floatBitsToUint(texelFetch(colortex6, iuv, 0).xy);
 
         vec3 albedo = fromGamma(unpackUnorm4x8(albedo_specular.x).rgb);
         vec4 lm_specular_encoded = unpackUnorm4x8(albedo_specular.y);
